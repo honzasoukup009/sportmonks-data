@@ -22,6 +22,34 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def split_nested_lists(records: list[dict]) -> dict[str, pd.DataFrame]:
+    """Split records into a main table plus one companion table per nested list-of-dicts field.
+
+    pandas.json_normalize only flattens nested dicts (e.g. venue -> venue.name); nested lists
+    (e.g. a team's players/coaches) are left as unreadable stringified Python literals in a
+    single cell. This pulls each such list out into its own table, one row per item, tagged
+    with the parent record's id so it can still be joined back.
+    """
+    scalar_records = []
+    child_rows: dict[str, list[dict]] = {}
+
+    for record in records:
+        parent_id = record.get("id")
+        scalar_record = {}
+        for key, value in record.items():
+            if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
+                for child in value:
+                    child_rows.setdefault(key, []).append({"parent_id": parent_id, **child})
+            else:
+                scalar_record[key] = value
+        scalar_records.append(scalar_record)
+
+    tables = {"": pd.json_normalize(scalar_records, sep=".")}
+    for key, rows in child_rows.items():
+        tables[key] = pd.json_normalize(rows, sep=".")
+    return tables
+
+
 def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = parse_args(argv)
@@ -37,11 +65,22 @@ def main(argv: list[str] | None = None) -> int:
         print("No data returned.", file=sys.stderr)
         return 1
 
-    df = pd.json_normalize(records, sep=".")
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
-    print(f"Wrote {len(df)} row(s) to {output_path}")
+    stem, suffix = output_path.stem, output_path.suffix or ".csv"
+
+    rows_written = 0
+    for name, df in split_nested_lists(records).items():
+        if df.empty:
+            continue
+        table_path = output_path if not name else output_path.with_name(f"{stem}.{name}{suffix}")
+        df.to_csv(table_path, index=False)
+        print(f"Wrote {len(df)} row(s) to {table_path}")
+        rows_written += len(df)
+
+    if rows_written == 0:
+        print("No data returned.", file=sys.stderr)
+        return 1
     return 0
 
 
