@@ -1,5 +1,6 @@
 import argparse
 import sys
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -18,6 +19,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Sportmonks entity ID, or a name/query string for *-search entities",
     )
     parser.add_argument("--include", default=None, help="Override the default 'include' string")
+    parser.add_argument(
+        "--start",
+        default=None,
+        help="Start date (YYYY-MM-DD) for date-ranged entities like team-fixtures; defaults to Jan 1 of the current year",
+    )
+    parser.add_argument(
+        "--end",
+        default=None,
+        help="End date (YYYY-MM-DD) for date-ranged entities like team-fixtures; defaults to Dec 31 of the current year",
+    )
     parser.add_argument("--output", default="data/output.csv", help="Where to write the flattened CSV")
     return parser.parse_args(argv)
 
@@ -54,8 +65,12 @@ def main(argv: list[str] | None = None) -> int:
     load_dotenv()
     args = parse_args(argv)
 
+    current_year = date.today().year
+    start = args.start or f"{current_year}-01-01"
+    end = args.end or f"{current_year}-12-31"
+
     config = ENTITY_ENDPOINTS[args.entity]
-    path = config["path"].format(id=args.id)
+    path = config["path"].format(id=args.id, start=start, end=end)
     include = args.include or config["include"]
 
     client = SportmonksClient()

@@ -14,12 +14,21 @@ on:
           - player
           - squad
           - team-stats
+          - team-fixtures
       id:
         description: "Entity ID, or a name/query for *-search entities"
         required: true
         type: string
       include:
         description: "Override the default 'include' string (optional)"
+        required: false
+        type: string
+      start:
+        description: "Start date YYYY-MM-DD for team-fixtures (optional, defaults to Jan 1 this year)"
+        required: false
+        type: string
+      end:
+        description: "End date YYYY-MM-DD for team-fixtures (optional, defaults to Dec 31 this year)"
         required: false
         type: string
 
@@ -43,6 +52,8 @@ jobs:
             --entity "${{ inputs.entity }}" \
             --id "${{ inputs.id }}" \
             ${{ inputs.include != '' && format('--include "{0}"', inputs.include) || '' }} \
+            ${{ inputs.start != '' && format('--start "{0}"', inputs.start) || '' }} \
+            ${{ inputs.end != '' && format('--end "{0}"', inputs.end) || '' }} \
             --output "data/${{ inputs.entity }}-${{ inputs.id }}.csv"
 
       - uses: actions/upload-artifact@v4
