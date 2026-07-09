@@ -1,12 +1,12 @@
 const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 
-// Leagues offered in the dropdown. Danish Superliga's ID is confirmed from a
-// live fixture lookup; Scottish Premiership is resolved by name search since
-// we haven't confirmed its ID live yet — if that group doesn't show up after
-// deploying, the search query below needs adjusting.
+// Leagues offered in the dropdown. Both IDs confirmed live: Danish Superliga
+// (271) from a fixture lookup, Scottish Premiership (501, country_id 1161)
+// via /leagues/search/Premiership — id 513 in that same search is the
+// end-of-season Play-Offs mini-competition, not the league itself.
 const LEAGUES = [
   { id: 271, label: "Dánská Superliga" },
-  { query: "Premiership", label: "Skotská Premiership" },
+  { id: 501, label: "Skotská Premiership" },
 ];
 
 const PAGE_STYLE = `
@@ -382,44 +382,6 @@ async function handleDownload(request) {
   });
 }
 
-// Temporary diagnostic route: shows exactly what each configured league
-// resolved to (or the error), without ever exposing the API token itself.
-// Remove once the league list is confirmed working.
-async function handleDebug(request, env) {
-  const url = new URL(request.url);
-  if (url.searchParams.get("pin") !== env.ACCESS_PIN) {
-    return new Response("Neplatný PIN.", { status: 403 });
-  }
-  const results = [];
-  for (const config of LEAGUES) {
-    try {
-      if (config.id) {
-        const league = await resolveLeague(config, env.SPORTMONKS_API_TOKEN);
-        results.push({ config, league });
-      } else {
-        // Show every match for a query-based league, not just the first pick,
-        // so we can eyeball which id/country_id is actually the right one.
-        const payload = await sportmonksGet(
-          `leagues/search/${encodeURIComponent(config.query)}`,
-          env.SPORTMONKS_API_TOKEN
-        );
-        const matches = (payload.data || []).map((l) => ({
-          id: l.id,
-          name: l.name,
-          country_id: l.country_id,
-          sub_type: l.sub_type,
-        }));
-        results.push({ config, matches });
-      }
-    } catch (err) {
-      results.push({ config, error: err.message });
-    }
-  }
-  return new Response(JSON.stringify(results, null, 2), {
-    headers: { "content-type": "application/json; charset=utf-8" },
-  });
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -433,9 +395,6 @@ export default {
     }
     if (url.pathname === "/download.csv" && request.method === "POST") {
       return handleDownload(request);
-    }
-    if (url.pathname === "/debug" && request.method === "GET") {
-      return handleDebug(request, env);
     }
     return new Response("Not found", { status: 404 });
   },
