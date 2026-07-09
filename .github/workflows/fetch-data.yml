@@ -8,12 +8,14 @@ on:
         required: true
         type: choice
         options:
+          - team-search
+          - player-search
           - team
           - player
           - squad
           - team-stats
       id:
-        description: "Sportmonks entity ID"
+        description: "Entity ID, or a name/query for *-search entities"
         required: true
         type: string
       include:

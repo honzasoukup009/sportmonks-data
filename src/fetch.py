@@ -12,7 +12,11 @@ from src.sportmonks_client import SportmonksClient
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fetch selected data from the Sportmonks API")
     parser.add_argument("--entity", required=True, choices=sorted(ENTITY_ENDPOINTS), help="What kind of data to pull")
-    parser.add_argument("--id", required=True, help="Sportmonks entity ID (team ID, player ID, etc.)")
+    parser.add_argument(
+        "--id",
+        required=True,
+        help="Sportmonks entity ID, or a name/query string for *-search entities",
+    )
     parser.add_argument("--include", default=None, help="Override the default 'include' string")
     parser.add_argument("--output", default="data/output.csv", help="Where to write the flattened CSV")
     return parser.parse_args(argv)
