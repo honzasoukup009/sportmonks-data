@@ -39,11 +39,16 @@ letošních zápasů (výsledky + základní statistiky) rovnou na stránce, obo
 ## Jak to kamarád používá
 
 1. Otevře odkaz v prohlížeči (funguje i na mobilu).
-2. Zadá PIN a název týmu (stačí i jen část názvu, např. "Kobenhavn").
-3. Uvidí soupisku hráčů a přehled letošních zápasů (datum, soupeř, doma/venku, výsledek, pár statistik jako
+2. Zadá PIN a klikne na "Pokračovat".
+3. Vybere tým z rozbalovacího seznamu (týmy dánské Superligy a skotské Premiership — obě soutěže, které
+   máš na free planu) a klikne na "Zobrazit".
+4. Uvidí soupisku hráčů a přehled letošních zápasů (datum, soupeř, doma/venku, výsledek, pár statistik jako
    rohy, držení míče, žluté/červené karty — pokud je Sportmonks pro danou soutěž eviduje).
-4. Volitelně klikne na "Stáhnout jako Excel (CSV)" u soupisky nebo u zápasů — soubor se stáhne do
+5. Volitelně klikne na "Stáhnout jako Excel (CSV)" u soupisky nebo u zápasů — soubor se stáhne do
    počítače/mobilu.
+
+Sportmonks se volá až po zadání správného PINu (samotné otevření stránky nic nestahuje) — dropdown se
+naplní teprve poté, co PIN projde, aby cizí návštěvník s odkazem, ale bez PINu, nemohl čerpat tvůj limit.
 
 Statistiky se ukazují jen u typů, které Sportmonks na free planu skutečně poskytuje (rohy, držení míče,
 žluté/červené karty, asistence) — jiné typy (např. střely na branku) na tomto plánu k dispozici nejsou.

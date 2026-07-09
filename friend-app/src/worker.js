@@ -1,12 +1,21 @@
 const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 
+// Leagues offered in the dropdown. Danish Superliga's ID is confirmed from a
+// live fixture lookup; Scottish Premiership is resolved by name search since
+// we haven't confirmed its ID live yet — if that group doesn't show up after
+// deploying, the search query below needs adjusting.
+const LEAGUES = [
+  { id: 271, label: "Dánská Superliga" },
+  { query: "Scottish Premiership", label: "Skotská Premiership" },
+];
+
 const PAGE_STYLE = `
   body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; padding: 1.5rem; color: #1a1a1a; }
   main { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   h1 { font-size: 1.5rem; margin-top: 0; }
   h2 { font-size: 1.2rem; margin-top: 2rem; }
   label { display: block; font-weight: 600; margin: 1rem 0 0.3rem; }
-  input[type=text], input[type=password] { width: 100%; box-sizing: border-box; padding: 0.6rem; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 8px; }
+  input[type=text], input[type=password], select { width: 100%; box-sizing: border-box; padding: 0.6rem; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 8px; }
   button { margin-top: 1.5rem; width: 100%; padding: 0.8rem; font-size: 1.1rem; font-weight: 600; color: #fff; background: #2563eb; border: none; border-radius: 8px; cursor: pointer; }
   button:hover { background: #1d4ed8; }
   button.secondary { background: #16a34a; margin-top: 1rem; }
@@ -43,16 +52,48 @@ function htmlResponse(body) {
   });
 }
 
-function renderForm({ error, team } = {}) {
+function renderPinForm({ error } = {}) {
   return `
     <h1>Soupiska a zápasy týmu</h1>
     <form method="POST" action="/">
       <label for="pin">PIN</label>
-      <input id="pin" type="password" name="pin" required>
-      <label for="team">Název týmu</label>
-      <input id="team" type="text" name="team" required placeholder="např. FC Kobenhavn" value="${escapeHtml(team)}">
-      <button type="submit">Zobrazit</button>
+      <input id="pin" type="password" name="pin" required autofocus>
+      <button type="submit">Pokračovat</button>
     </form>
+    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+  `;
+}
+
+function renderTeamOptions(leagueGroups) {
+  return leagueGroups
+    .map(
+      (group) => `<optgroup label="${escapeHtml(group.label)}">
+        ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
+      </optgroup>`
+    )
+    .join("");
+}
+
+function renderTeamForm({ pin, leagueGroups, error } = {}) {
+  const hasTeams = leagueGroups.some((g) => g.teams.length > 0);
+  return `
+    <h1>Vyber tým</h1>
+    ${
+      hasTeams
+        ? `<form method="POST" action="/">
+            <input type="hidden" name="pin" value="${escapeHtml(pin)}">
+            <label for="team_id">Tým</label>
+            <select id="team_id" name="team_id" required>
+              <option value="">-- vyber tým --</option>
+              ${renderTeamOptions(leagueGroups)}
+            </select>
+            <button type="submit">Zobrazit</button>
+          </form>`
+        : `<form method="POST" action="/">
+            <input type="hidden" name="pin" value="${escapeHtml(pin)}">
+            <button type="submit">Zkusit znovu načíst seznam týmů</button>
+          </form>`
+    }
     ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
   `;
 }
@@ -75,10 +116,44 @@ async function sportmonksGet(path, token) {
   throw new Error("Sportmonks API je teď přetížené, zkus to prosím za chvíli znovu.");
 }
 
-async function findTeam(name, token) {
-  const payload = await sportmonksGet(`teams/search/${encodeURIComponent(name)}`, token);
+async function resolveLeague(config, token) {
+  if (config.id) {
+    const payload = await sportmonksGet(`leagues/${config.id}?include=currentseason`, token);
+    return payload.data || null;
+  }
+  const payload = await sportmonksGet(`leagues/search/${encodeURIComponent(config.query)}?include=currentseason`, token);
   const data = payload.data || [];
   return data[0] || null;
+}
+
+async function fetchSeasonTeams(seasonId, token) {
+  const payload = await sportmonksGet(`teams/seasons/${seasonId}`, token);
+  return payload.data || [];
+}
+
+async function fetchLeagueGroups(token) {
+  const groups = [];
+  for (const config of LEAGUES) {
+    try {
+      const league = await resolveLeague(config, token);
+      const seasonId = league?.currentseason?.id;
+      if (!seasonId) continue;
+      const teams = await fetchSeasonTeams(seasonId, token);
+      if (!teams.length) continue;
+      groups.push({
+        label: config.label,
+        teams: teams.map((t) => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name)),
+      });
+    } catch {
+      // Skip a league that failed to resolve rather than failing the whole page.
+    }
+  }
+  return groups;
+}
+
+async function fetchTeam(teamId, token) {
+  const payload = await sportmonksGet(`teams/${teamId}`, token);
+  return payload.data || null;
 }
 
 async function fetchSquad(teamId, token) {
@@ -149,7 +224,7 @@ function fixtureRow(fixture, teamId) {
   };
 }
 
-function renderResults(teamName, squad, fixtures) {
+function renderResults(teamName, squad, fixtures, pin) {
   const squadTableRows = squad
     .map(
       (row) => `<tr>
@@ -205,7 +280,8 @@ function renderResults(teamName, squad, fixtures) {
         : `<p class="hint">Pro tento tým letos nejsou žádné zápasy v evidenci.</p>`
     }
 
-    <form method="GET" action="/">
+    <form method="POST" action="/">
+      <input type="hidden" name="pin" value="${escapeHtml(pin)}">
       <button type="submit">Hledat jiný tým</button>
     </form>
   `;
@@ -236,37 +312,51 @@ function buildCsv(kind, rows) {
   return "﻿" + lines.join("\r\n");
 }
 
-async function handleSearch(request, env) {
-  const form = await request.formData();
+// Step 1: PIN only. On success, loads the team dropdown (this is the first
+// point any Sportmonks call happens, so an unauthenticated visitor can't
+// burn API quota just by loading the page).
+async function handlePinStep(form, env) {
   const pin = (form.get("pin") || "").toString();
-  const team = (form.get("team") || "").toString().trim();
-
   if (pin !== env.ACCESS_PIN) {
-    return htmlResponse(renderForm({ error: "Nesprávný PIN.", team }));
-  }
-  if (!team) {
-    return htmlResponse(renderForm({ error: "Zadej název týmu.", team }));
+    return htmlResponse(renderPinForm({ error: "Nesprávný PIN." }));
   }
 
   try {
-    const foundTeam = await findTeam(team, env.SPORTMONKS_API_TOKEN);
-    if (!foundTeam) {
-      return htmlResponse(
-        renderForm({ error: `Tým "${team}" se nepodařilo najít. Zkus jiný název nebo jen jeho část.`, team })
-      );
-    }
-    const squadData = await fetchSquad(foundTeam.id, env.SPORTMONKS_API_TOKEN);
-    const fixturesData = await fetchFixtures(foundTeam.id, env.SPORTMONKS_API_TOKEN);
+    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN);
+    return htmlResponse(renderTeamForm({ pin, leagueGroups }));
+  } catch (err) {
+    return htmlResponse(renderTeamForm({ pin, leagueGroups: [], error: err.message }));
+  }
+}
+
+// Step 2: PIN + chosen team_id. Fetches team name, squad, and fixtures.
+async function handleTeamStep(form, env) {
+  const pin = (form.get("pin") || "").toString();
+  const teamId = Number(form.get("team_id"));
+
+  if (pin !== env.ACCESS_PIN) {
+    return htmlResponse(renderPinForm({ error: "Nesprávný PIN." }));
+  }
+  if (!teamId) {
+    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
+    return htmlResponse(renderTeamForm({ pin, leagueGroups, error: "Vyber prosím tým ze seznamu." }));
+  }
+
+  try {
+    const team = await fetchTeam(teamId, env.SPORTMONKS_API_TOKEN);
+    const squadData = await fetchSquad(teamId, env.SPORTMONKS_API_TOKEN);
+    const fixturesData = await fetchFixtures(teamId, env.SPORTMONKS_API_TOKEN);
 
     const squad = squadData.map(squadRow);
     const fixtures = fixturesData
       .slice()
       .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1))
-      .map((f) => fixtureRow(f, foundTeam.id));
+      .map((f) => fixtureRow(f, teamId));
 
-    return htmlResponse(renderResults(foundTeam.name, squad, fixtures));
+    return htmlResponse(renderResults(team?.name || "Tým", squad, fixtures, pin));
   } catch (err) {
-    return htmlResponse(renderForm({ error: err.message, team }));
+    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
+    return htmlResponse(renderTeamForm({ pin, leagueGroups, error: err.message }));
   }
 }
 
@@ -297,10 +387,11 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === "/" && request.method === "GET") {
-      return htmlResponse(renderForm());
+      return htmlResponse(renderPinForm());
     }
     if (url.pathname === "/" && request.method === "POST") {
-      return handleSearch(request, env);
+      const form = await request.formData();
+      return form.get("team_id") ? handleTeamStep(form, env) : handlePinStep(form, env);
     }
     if (url.pathname === "/download.csv" && request.method === "POST") {
       return handleDownload(request);
