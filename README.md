@@ -1,5 +1,7 @@
 # sportmonks-data
 
+*[Česká verze zde](README.cz.md)*
+
 On-demand fetcher for player/team/squad data from the [Sportmonks Football API v3](https://docs.sportmonks.com/football).
 Trigger a run from GitHub Actions, get back a CSV as a downloadable artifact — no server to maintain.
 
