@@ -1,0 +1,3 @@
+name = "sportmonks-friend-lookup"
+main = "src/worker.js"
+compatibility_date = "2025-01-01"

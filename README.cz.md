@@ -63,3 +63,8 @@ Sportmonks ID nejsou názvy týmů/hráčů — pro jejich zjištění použijte
 ```
 https://api.sportmonks.com/v3/football/teams/search/arsenal?api_token=YOUR_TOKEN
 ```
+
+## Verze pro kamaráda bez GitHubu
+
+Pro sdílení s někým, kdo nemá (a nechce mít) GitHub účet, existuje jednodušší webová verze s formulářem —
+viz [`friend-app/README.cz.md`](friend-app/README.cz.md).
