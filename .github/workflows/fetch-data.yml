@@ -1,0 +1,49 @@
+name: Fetch Sportmonks data
+
+on:
+  workflow_dispatch:
+    inputs:
+      entity:
+        description: "Entity type to fetch"
+        required: true
+        type: choice
+        options:
+          - team
+          - player
+          - squad
+          - team-stats
+      id:
+        description: "Sportmonks entity ID"
+        required: true
+        type: string
+      include:
+        description: "Override the default 'include' string (optional)"
+        required: false
+        type: string
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Fetch data
+        env:
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+        run: |
+          python -m src.fetch \
+            --entity "${{ inputs.entity }}" \
+            --id "${{ inputs.id }}" \
+            ${{ inputs.include != '' && format('--include "{0}"', inputs.include) || '' }} \
+            --output "data/${{ inputs.entity }}-${{ inputs.id }}.csv"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sportmonks-${{ inputs.entity }}-${{ inputs.id }}
+          path: data/*.csv
