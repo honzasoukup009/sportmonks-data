@@ -163,7 +163,7 @@ async function fetchSquad(teamId, token) {
 
 async function fetchFixtures(teamId, token) {
   const year = new Date().getUTCFullYear();
-  const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=participants;scores;statistics.type`;
+  const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=participants;scores;statistics.type;events.type`;
   const payload = await sportmonksGet(path, token);
   return payload.data || [];
 }
@@ -201,6 +201,42 @@ function summarizeStats(fixture, teamId) {
   return parts.join(", ");
 }
 
+function scoreAt(scores, description) {
+  const entries = scores.filter((s) => s.description === description);
+  const home = entries.find((s) => s.score?.participant === "home")?.score?.goals;
+  const away = entries.find((s) => s.score?.participant === "away")?.score?.goals;
+  return home !== undefined && away !== undefined ? `${home}:${away}` : "";
+}
+
+function formatMinute(event) {
+  const extra = event.extra_minute ? `+${event.extra_minute}` : "";
+  return `${event.minute}${extra}'`;
+}
+
+function summarizeGoals(fixture, teamNames) {
+  const events = fixture.events || [];
+  return events
+    .filter((e) => e.type?.name === "Goal" || e.type?.name === "Penalty")
+    .sort((a, b) => Number(a.minute) - Number(b.minute))
+    .map((e) => `${formatMinute(e)} ${e.player_name || "?"} (${teamNames[e.participant_id] || ""})`)
+    .join(", ");
+}
+
+const CARD_LABELS = {
+  Yellowcard: "žlutá",
+  Redcard: "červená",
+  "Yellow/Red card": "2. žlutá",
+};
+
+function summarizeCards(fixture, teamNames) {
+  const events = fixture.events || [];
+  return events
+    .filter((e) => CARD_LABELS[e.type?.name])
+    .sort((a, b) => Number(a.minute) - Number(b.minute))
+    .map((e) => `${formatMinute(e)} ${e.player_name || "?"} (${CARD_LABELS[e.type.name]}, ${teamNames[e.participant_id] || ""})`)
+    .join(", ");
+}
+
 function fixtureRow(fixture, teamId) {
   const participants = fixture.participants || [];
   const us = participants.find((p) => p.id === teamId);
@@ -208,18 +244,25 @@ function fixtureRow(fixture, teamId) {
   const location = us?.meta?.location;
   const venue = location === "home" ? "Doma" : location === "away" ? "Venku" : "";
 
+  const teamNames = {};
+  for (const p of participants) teamNames[p.id] = p.name;
+
   const scores = fixture.scores || [];
-  const current = scores.filter((s) => s.description === "CURRENT");
-  const homeGoals = current.find((s) => s.score?.participant === "home")?.score?.goals;
-  const awayGoals = current.find((s) => s.score?.participant === "away")?.score?.goals;
-  const score =
-    homeGoals !== undefined && awayGoals !== undefined ? `${homeGoals}:${awayGoals}` : fixture.result_info || "";
+  const fullTime = scoreAt(scores, "CURRENT");
+  const halfTime = scoreAt(scores, "1ST_HALF");
+  const score = fullTime
+    ? halfTime
+      ? `${fullTime} (poločas ${halfTime})`
+      : fullTime
+    : fixture.result_info || "";
 
   return {
     date: (fixture.starting_at || "").slice(0, 10),
     opponent: opponent?.name || "",
     venue,
     score,
+    goals: summarizeGoals(fixture, teamNames),
+    cards: summarizeCards(fixture, teamNames),
     stats: summarizeStats(fixture, teamId),
   };
 }
@@ -243,6 +286,8 @@ function renderResults(teamName, squad, fixtures, pin) {
         <td>${escapeHtml(row.opponent)}</td>
         <td>${escapeHtml(row.venue)}</td>
         <td>${escapeHtml(row.score)}</td>
+        <td>${escapeHtml(row.goals)}</td>
+        <td>${escapeHtml(row.cards)}</td>
         <td>${escapeHtml(row.stats)}</td>
       </tr>`
     )
@@ -266,11 +311,13 @@ function renderResults(teamName, squad, fixtures, pin) {
     <h2>Zápasy — ${new Date().getUTCFullYear()}</h2>
     ${
       fixtures.length
-        ? `<table>
-            <thead><tr><th>Datum</th><th>Soupeř</th><th>Doma/Venku</th><th>Výsledek</th><th>Statistiky</th></tr></thead>
+        ? `<div style="overflow-x: auto;">
+          <table>
+            <thead><tr><th>Datum</th><th>Soupeř</th><th>Doma/Venku</th><th>Výsledek</th><th>Góly</th><th>Karty</th><th>Statistiky</th></tr></thead>
             <tbody>${fixturesTableRows}</tbody>
           </table>
-          <p class="hint">Statistiky se zobrazují jen u odehraných zápasů a jen pokud je Sportmonks pro danou soutěž eviduje.</p>
+          </div>
+          <p class="hint">Góly, karty a statistiky se zobrazují jen u odehraných zápasů a jen pokud je Sportmonks pro danou soutěž eviduje.</p>
           <form method="POST" action="/download.csv">
             <input type="hidden" name="kind" value="fixtures">
             <input type="hidden" name="team" value="${escapeHtml(teamName)}">
@@ -299,8 +346,8 @@ const CSV_SCHEMAS = {
     filenameSuffix: "soupiska",
   },
   fixtures: {
-    header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Statistiky"],
-    toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.stats],
+    header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky"],
+    toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats],
     filenameSuffix: "zapasy",
   },
 };
