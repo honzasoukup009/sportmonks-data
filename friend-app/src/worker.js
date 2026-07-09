@@ -382,6 +382,28 @@ async function handleDownload(request) {
   });
 }
 
+// Temporary diagnostic route: shows exactly what each configured league
+// resolved to (or the error), without ever exposing the API token itself.
+// Remove once the league list is confirmed working.
+async function handleDebug(request, env) {
+  const url = new URL(request.url);
+  if (url.searchParams.get("pin") !== env.ACCESS_PIN) {
+    return new Response("Neplatný PIN.", { status: 403 });
+  }
+  const results = [];
+  for (const config of LEAGUES) {
+    try {
+      const league = await resolveLeague(config, env.SPORTMONKS_API_TOKEN);
+      results.push({ config, league });
+    } catch (err) {
+      results.push({ config, error: err.message });
+    }
+  }
+  return new Response(JSON.stringify(results, null, 2), {
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -395,6 +417,9 @@ export default {
     }
     if (url.pathname === "/download.csv" && request.method === "POST") {
       return handleDownload(request);
+    }
+    if (url.pathname === "/debug" && request.method === "GET") {
+      return handleDebug(request, env);
     }
     return new Response("Not found", { status: 404 });
   },
