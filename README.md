@@ -27,11 +27,15 @@ gh secret set SPORTMONKS_API_TOKEN
 
 Go to **Actions → Fetch Sportmonks data → Run workflow**, fill in:
 
-- `entity`: `team`, `player`, `squad`, or `team-stats`
-- `id`: the Sportmonks numeric ID for that entity
+- `entity`: `team-search`, `player-search`, `team`, `player`, `squad`, or `team-stats`
+- `id`: the Sportmonks numeric ID for that entity, or a name/query string for `*-search` entities
 - `include` (optional): override the default `include` string to pull different nested data
 
-Download the resulting CSV from the workflow run's **Artifacts** section.
+Download the resulting CSV(s) from the workflow run's **Artifacts** section. If the response has nested list
+fields (e.g. a team's `players` or `coaches`), those are split into companion files —
+`team-85.csv`, `team-85.players.csv`, `team-85.coaches.csv` — each child row tagged with `parent_id` so you
+can join it back to the main table. Nested single objects (e.g. `venue`) stay flattened as `venue.name`,
+`venue.city_name`, etc. in the main file.
 
 ### Locally
 
