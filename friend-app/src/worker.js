@@ -6,7 +6,7 @@ const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 // deploying, the search query below needs adjusting.
 const LEAGUES = [
   { id: 271, label: "Dánská Superliga" },
-  { query: "Scottish Premiership", label: "Skotská Premiership" },
+  { query: "Premiership", label: "Skotská Premiership" },
 ];
 
 const PAGE_STYLE = `
@@ -393,8 +393,24 @@ async function handleDebug(request, env) {
   const results = [];
   for (const config of LEAGUES) {
     try {
-      const league = await resolveLeague(config, env.SPORTMONKS_API_TOKEN);
-      results.push({ config, league });
+      if (config.id) {
+        const league = await resolveLeague(config, env.SPORTMONKS_API_TOKEN);
+        results.push({ config, league });
+      } else {
+        // Show every match for a query-based league, not just the first pick,
+        // so we can eyeball which id/country_id is actually the right one.
+        const payload = await sportmonksGet(
+          `leagues/search/${encodeURIComponent(config.query)}`,
+          env.SPORTMONKS_API_TOKEN
+        );
+        const matches = (payload.data || []).map((l) => ({
+          id: l.id,
+          name: l.name,
+          country_id: l.country_id,
+          sub_type: l.sub_type,
+        }));
+        results.push({ config, matches });
+      }
     } catch (err) {
       results.push({ config, error: err.message });
     }
