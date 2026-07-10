@@ -429,37 +429,45 @@ async function handleDownload(request) {
   });
 }
 
-// Temporary diagnostic route: finds Czechia's country id, then lists every
-// league Sportmonks has for it (id, name, sub_type, category) so we can pick
-// the right top-flight league deliberately instead of guessing a name.
-// Remove once the league id is confirmed and hardcoded in LEAGUES.
+// Temporary diagnostic route: (1) finds a well-known Czech club via the
+// already-confirmed teams/search endpoint to read off its country_id, and
+// (2) tries a few plausible names for the Czech top flight via leagues/search
+// (Sportmonks tends to store bare sponsor names, not "Czech X" — Denmark is
+// just "Superliga", Scotland is just "Premiership"). Cross-reference the
+// country_id to find the right one. Remove once confirmed and hardcoded.
 async function handleDebug(request, env) {
   const url = new URL(request.url);
   if (url.searchParams.get("pin") !== env.ACCESS_PIN) {
     return new Response("Neplatný PIN.", { status: 403 });
   }
+  const token = env.SPORTMONKS_API_TOKEN;
+  const results = {};
+
   try {
-    const countryPayload = await sportmonksGet("countries/search/Czech", env.SPORTMONKS_API_TOKEN);
-    const countries = countryPayload.data || [];
-    const results = [];
-    for (const country of countries) {
-      const leaguesPayload = await sportmonksGet(`leagues/countries/${country.id}`, env.SPORTMONKS_API_TOKEN);
-      results.push({
-        country: { id: country.id, name: country.name },
-        leagues: (leaguesPayload.data || []).map((l) => ({
-          id: l.id,
-          name: l.name,
-          sub_type: l.sub_type,
-          category: l.category,
-        })),
-      });
-    }
-    return new Response(JSON.stringify(results, null, 2), {
-      headers: { "content-type": "application/json; charset=utf-8" },
-    });
+    const payload = await sportmonksGet(`teams/search/${encodeURIComponent("Sparta Praha")}`, token);
+    results.teamSample = (payload.data || []).map((t) => ({ id: t.id, name: t.name, country_id: t.country_id }));
   } catch (err) {
-    return new Response(`Chyba: ${err.message}`, { status: 500 });
+    results.teamSampleError = err.message;
   }
+
+  results.leagueMatches = {};
+  for (const query of ["Chance Liga", "Fortuna Liga", "Czech Liga", "1. Liga", "Liga"]) {
+    try {
+      const payload = await sportmonksGet(`leagues/search/${encodeURIComponent(query)}`, token);
+      results.leagueMatches[query] = (payload.data || []).map((l) => ({
+        id: l.id,
+        name: l.name,
+        country_id: l.country_id,
+        sub_type: l.sub_type,
+      }));
+    } catch (err) {
+      results.leagueMatches[query] = { error: err.message };
+    }
+  }
+
+  return new Response(JSON.stringify(results, null, 2), {
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
 }
 
 export default {
