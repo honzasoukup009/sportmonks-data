@@ -27,8 +27,17 @@ class SportmonksClient:
                 wait = int(response.headers.get("Retry-After", 2**attempt))
                 time.sleep(wait)
                 continue
-            response.raise_for_status()
-            return response.json()
+            if not response.ok:
+                detail = response.text
+                try:
+                    detail = response.json().get("message", detail)
+                except ValueError:
+                    pass
+                raise SportmonksError(f"Sportmonks API error {response.status_code} for {url}: {detail}")
+            payload = response.json()
+            if "data" not in payload and "message" in payload:
+                raise SportmonksError(f"Sportmonks API error for {url}: {payload['message']}")
+            return payload
         raise SportmonksError(f"Rate limited after {self.max_retries} retries: {url}")
 
     def get(
