@@ -159,7 +159,8 @@ async function fetchSquad(teamId, token) {
 
 async function fetchFixtures(teamId, token) {
   const year = new Date().getUTCFullYear();
-  const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=participants;scores;statistics.type;events.type`;
+  const include = "participants;scores;statistics.type;events.type;referees.referee;referees.type";
+  const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=${include}`;
   const payload = await sportmonksGet(path, token);
   return payload.data || [];
 }
@@ -173,7 +174,7 @@ function squadRow(entry) {
   };
 }
 
-// Only the statistic types actually observed on the free-plan leagues; anything
+// Only statistic types confirmed live against the current plan; anything
 // else is silently skipped rather than guessed at.
 const STAT_LABELS = {
   Corners: "Rohy",
@@ -181,6 +182,9 @@ const STAT_LABELS = {
   Yellowcards: "Žluté karty",
   Redcards: "Červené karty",
   Assists: "Asistence",
+  Fouls: "Fauly",
+  "Shots Total": "Střely",
+  "Shots On Target": "Střely na branku",
 };
 
 function summarizeStats(fixture, teamId) {
@@ -233,6 +237,14 @@ function summarizeCards(fixture, teamNames) {
     .join(", ");
 }
 
+function mainReferee(fixture) {
+  const referees = fixture.referees || [];
+  // type_id 6 = "Referee" (the main official), confirmed live — 7/8/9 are
+  // assistants and the fourth official, which we don't surface here.
+  const main = referees.find((r) => r.type?.name === "Referee" || r.type_id === 6);
+  return main?.referee?.name || "";
+}
+
 function fixtureRow(fixture, teamId) {
   const participants = fixture.participants || [];
   const us = participants.find((p) => p.id === teamId);
@@ -260,6 +272,7 @@ function fixtureRow(fixture, teamId) {
     goals: summarizeGoals(fixture, teamNames),
     cards: summarizeCards(fixture, teamNames),
     stats: summarizeStats(fixture, teamId),
+    referee: mainReferee(fixture),
   };
 }
 
@@ -285,6 +298,7 @@ function renderResults(teamName, squad, fixtures, pin) {
         <td>${escapeHtml(row.goals)}</td>
         <td>${escapeHtml(row.cards)}</td>
         <td>${escapeHtml(row.stats)}</td>
+        <td>${escapeHtml(row.referee)}</td>
       </tr>`
     )
     .join("");
@@ -309,7 +323,7 @@ function renderResults(teamName, squad, fixtures, pin) {
       fixtures.length
         ? `<div style="overflow-x: auto;">
           <table>
-            <thead><tr><th>Datum</th><th>Soupeř</th><th>Doma/Venku</th><th>Výsledek</th><th>Góly</th><th>Karty</th><th>Statistiky</th></tr></thead>
+            <thead><tr><th>Datum</th><th>Soupeř</th><th>Doma/Venku</th><th>Výsledek</th><th>Góly</th><th>Karty</th><th>Statistiky</th><th>Rozhodčí</th></tr></thead>
             <tbody>${fixturesTableRows}</tbody>
           </table>
           </div>
@@ -342,8 +356,8 @@ const CSV_SCHEMAS = {
     filenameSuffix: "soupiska",
   },
   fixtures: {
-    header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky"],
-    toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats],
+    header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí"],
+    toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee],
     filenameSuffix: "zapasy",
   },
 };
