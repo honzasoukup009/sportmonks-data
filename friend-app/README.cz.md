@@ -51,13 +51,16 @@ otevře odkaz v prohlížeči.
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), průběh zápasu (góly a karty s minutou
    a jménem hráče), sestavy obou týmů (podle formace a postu) a posledních 5 vzájemných zápasů.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů.
+7. V postranním menu klikne na **Sezóny**: tabulka Chance Ligy (aktuální i minulé ročníky přes chipy
+   nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc přibyla
+   "Historie sezón" — umístění a body týmu v předchozích ročnících.
 
 Sportmonks se volá až po zadání správného PINu (samotné otevření stránky nic nestahuje) — žádná data se
 nenačtou, dokud PIN neprojde, aby cizí návštěvník s odkazem, ale bez PINu, nemohl čerpat tvůj limit.
 
 Statistiky se ukazují jen u typů, které jsme ověřili naostro (rohy, držení míče, fauly, střely, žluté/
-červené karty, asistence). Sezónní přehled soutěže (tabulka, nejlepší střelci, historie sezón) zatím
-chybí — je to plánovaný další krok, potřebuje jiné Sportmonks endpointy, které ještě nejsou ověřené.
+červené karty, asistence). Sportmonks má pro Chance Ligu evidované jen 3 sezóny (2024/25, 2025/26,
+2026/27) — hlubší historie není na tomto tarifu k dispozici.
 
 ## Údržba
 

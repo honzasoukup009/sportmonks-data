@@ -72,6 +72,14 @@ const PAGE_STYLE = `
   .ev-tag { font-weight: 700; font-size: 10px; margin: 0 5px; }
   .lineup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
   .overflow-x { overflow-x: auto; }
+  .chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
+  .chip { flex-shrink: 0; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface2); color: var(--text-dim); font-weight: 600; font-size: 13px; }
+  .chip.active { border-color: var(--accent); background: var(--surface3); color: var(--accent); }
+  .champion-banner { display: flex; align-items: center; gap: 20px; background: linear-gradient(135deg, hsla(45,90%,55%,0.14), var(--surface)); border: 1px solid var(--border-strong); border-radius: 16px; padding: 20px 28px; margin-top: 20px; }
+  .champion-label { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: .08em; font-weight: 700; }
+  .zone-top { border-left: 3px solid var(--accent); }
+  .zone-bottom { border-left: 3px solid var(--danger); }
+  .scorer-row { display: flex; align-items: center; gap: 10px; background: var(--surface2); border-radius: 12px; padding: 10px 14px; min-width: 200px; }
 `;
 
 function escapeHtml(value) {
@@ -90,7 +98,7 @@ function shell(activeNav, body) {
         </div>
         <nav class="nav">
           <a class="navlink ${activeNav === "team" ? "active" : ""}" href="/team">Tým</a>
-          <span class="navlink disabled">Sezóny (připravujeme)</span>
+          <a class="navlink ${activeNav === "league" ? "active" : ""}" href="/league">Sezóny</a>
         </nav>
         <div class="sidebar-footer">Zdroj dat: Sportmonks API</div>
       </aside>
@@ -252,6 +260,86 @@ async function fetchFixtureById(fixtureId, token) {
 async function fetchHeadToHead(teamA, teamB, token) {
   const payload = await sportmonksGet(`fixtures/head-to-head/${teamA}/${teamB}?include=participants;scores;league`, token);
   return payload.data || [];
+}
+
+async function fetchLeagueSeasons(leagueId, token) {
+  const payload = await sportmonksGet(`leagues/${leagueId}?include=seasons`, token);
+  return payload.data?.seasons || [];
+}
+
+async function fetchStandings(seasonId, token) {
+  const payload = await sportmonksGet(`standings/seasons/${seasonId}?include=participant;details.type`, token);
+  return payload.data || [];
+}
+
+async function fetchTopScorers(seasonId, token) {
+  const payload = await sportmonksGet(`topscorers/seasons/${seasonId}?include=player;participant;type`, token);
+  return payload.data || [];
+}
+
+// A season's standings response mixes multiple stages (full table + the
+// championship/relegation split groups that come later in the season) in one
+// response. The full table is always the stage with the most rows (one per
+// team in the league), so we pick that rather than trust stage_id directly.
+function mainTableStage(standings) {
+  const counts = {};
+  for (const row of standings) counts[row.stage_id] = (counts[row.stage_id] || 0) + 1;
+  let bestStage = null;
+  let bestCount = 0;
+  for (const [stage, count] of Object.entries(counts)) {
+    if (count > bestCount) {
+      bestCount = count;
+      bestStage = stage;
+    }
+  }
+  return standings
+    .filter((r) => String(r.stage_id) === String(bestStage))
+    .sort((a, b) => a.position - b.position);
+}
+
+// "Overal Goals Scored" (sic) is Sportmonks' actual field name, not a typo we
+// introduced — confirmed live.
+const STANDING_DETAIL_KEYS = {
+  "Overall Matches Played": "played",
+  "Overall Won": "won",
+  "Overall Draw": "draw",
+  "Overall Lost": "lost",
+  "Overal Goals Scored": "gf",
+  "Overall Goals Conceded": "ga",
+};
+
+function standingRow(row) {
+  const details = {};
+  for (const d of row.details || []) {
+    const key = STANDING_DETAIL_KEYS[d.type?.name];
+    if (key) details[key] = d.value;
+  }
+  return {
+    position: row.position,
+    teamId: row.participant?.id,
+    teamName: row.participant?.name || "",
+    shortCode: row.participant?.short_code,
+    points: row.points,
+    played: details.played ?? "",
+    won: details.won ?? "",
+    draw: details.draw ?? "",
+    lost: details.lost ?? "",
+    gf: details.gf ?? "",
+    ga: details.ga ?? "",
+  };
+}
+
+function topScorersList(rows, count = 10) {
+  return rows
+    .filter((r) => r.type?.name === "Goal Topscorer")
+    .sort((a, b) => b.total - a.total)
+    .slice(0, count)
+    .map((r) => ({
+      name: r.player?.display_name || r.player?.name || "",
+      team: r.participant?.name || "",
+      teamId: r.participant?.id,
+      goals: r.total,
+    }));
 }
 
 // --- Team badge helpers (Sportmonks doesn't give club colors, so we derive a
@@ -541,7 +629,7 @@ function renderMatchCard(row) {
   `;
 }
 
-function renderTeamPage(team, fixturesRaw, fixtureRows, squad) {
+function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
   const summary = teamSummary(fixturesRaw, team.id);
   const form = recentForm(fixturesRaw, team.id);
   const tiles = [
@@ -638,6 +726,29 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad) {
         <button type="submit" class="secondary">Stáhnout zápasy jako Excel (CSV)</button>
       </form>
     </div>
+
+    ${
+      history.length
+        ? `<div class="card">
+            <h2>Historie sezón</h2>
+            <table>
+              <thead><tr><th>Sezóna</th><th>Poř.</th><th>Body</th><th>Skóre</th></tr></thead>
+              <tbody>
+                ${history
+                  .map(
+                    (h) => `<tr>
+                      <td class="mono">${escapeHtml(h.season)}</td>
+                      <td class="mono" style="color:${h.position === 1 ? "var(--gold)" : "var(--text)"};font-weight:700;">${escapeHtml(h.position)}.</td>
+                      <td class="mono">${escapeHtml(h.points)}</td>
+                      <td class="mono">${escapeHtml(h.gf)}:${escapeHtml(h.ga)}</td>
+                    </tr>`
+                  )
+                  .join("")}
+              </tbody>
+            </table>
+          </div>`
+        : ""
+    }
 
     <a class="btn secondary" href="/team" style="margin-top:20px;">Vybrat jiný tým</a>
   `;
@@ -745,6 +856,82 @@ function renderH2H(h2h, teamId) {
       </table>
     </div>
   `;
+}
+
+function renderSeasonPage(seasons, selectedSeason, table, topScorers) {
+  const chips = seasons
+    .map(
+      (s) => `<a class="chip ${s.id === selectedSeason.id ? "active" : ""}" href="/league/${s.id}">${escapeHtml(s.name)}</a>`
+    )
+    .join("");
+
+  const champion = table[0];
+
+  const tableRows = table
+    .map((r) => {
+      const zoneClass = r.position <= 3 ? "zone-top" : r.position >= table.length - 2 ? "zone-bottom" : "";
+      return `<tr class="${zoneClass}" style="padding-left:8px;">
+        <td class="mono" style="font-weight:700;">${escapeHtml(r.position)}</td>
+        <td><a href="/team/${r.teamId}">${escapeHtml(r.teamName)}</a></td>
+        <td class="mono">${escapeHtml(r.played)}</td>
+        <td class="mono">${escapeHtml(r.won)}</td>
+        <td class="mono">${escapeHtml(r.draw)}</td>
+        <td class="mono">${escapeHtml(r.lost)}</td>
+        <td class="mono">${escapeHtml(r.gf)}:${escapeHtml(r.ga)}</td>
+        <td class="mono" style="font-weight:700;">${escapeHtml(r.points)}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const scorerCards = topScorers
+    .map(
+      (p) => `<div class="scorer-row">
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:600;">${escapeHtml(p.name)}</div>
+          <div class="hint">${escapeHtml(p.team)}</div>
+        </div>
+        <div class="mono" style="font-weight:700;color:var(--accent);">${escapeHtml(p.goals)}</div>
+      </div>`
+    )
+    .join("");
+
+  const body = `
+    <h1>Sezóny</h1>
+    <p class="lead">Tabulka a nejlepší střelci Chance Ligy.</p>
+
+    <div class="chip-row" style="margin-top:16px;">${chips}</div>
+
+    ${
+      champion
+        ? `<div class="champion-banner">
+            ${badge({ id: champion.teamId, name: champion.teamName, short_code: champion.shortCode }, 52)}
+            <div>
+              <div class="champion-label">Vede tabulku — ${escapeHtml(selectedSeason.name)}</div>
+              <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;">${escapeHtml(champion.teamName)}</div>
+            </div>
+            <div class="mono" style="margin-left:auto;font-size:21px;font-weight:700;">${escapeHtml(champion.points)} b.</div>
+          </div>`
+        : ""
+    }
+
+    <div class="card">
+      <h2>Tabulka</h2>
+      ${
+        table.length
+          ? `<div class="overflow-x"><table>
+              <thead><tr><th>Poř.</th><th>Tým</th><th>Z</th><th>V</th><th>R</th><th>P</th><th>Skóre</th><th>B</th></tr></thead>
+              <tbody>${tableRows}</tbody>
+            </table></div>`
+          : `<p class="hint">Pro tuto sezónu není tabulka k dispozici.</p>`
+      }
+    </div>
+
+    <div class="card">
+      <h2>Nejlepší střelci</h2>
+      ${topScorers.length ? `<div style="display:flex;gap:14px;flex-wrap:wrap;">${scorerCards}</div>` : `<p class="hint">Pro tuto sezónu nejsou střelci k dispozici.</p>`}
+    </div>
+  `;
+  return shell("league", body);
 }
 
 function renderMatchPage(fixture, teamId, h2h) {
@@ -862,19 +1049,59 @@ async function handleDownload(request) {
 
 // ============================== Route handlers ==============================
 
+async function fetchTeamSeasonHistory(teamId, leagueId, token) {
+  const seasons = await fetchLeagueSeasons(leagueId, token);
+  const finished = seasons.filter((s) => s.finished).sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
+  const history = [];
+  for (const season of finished) {
+    try {
+      const standings = await fetchStandings(season.id, token);
+      const table = mainTableStage(standings).map(standingRow);
+      const row = table.find((r) => r.teamId === teamId);
+      if (row) history.push({ season: season.name, position: row.position, points: row.points, gf: row.gf, ga: row.ga });
+    } catch {
+      // Skip a season whose standings failed to resolve.
+    }
+  }
+  return history;
+}
+
 async function handleTeamPage(teamId, env) {
   try {
     const team = await fetchTeam(teamId, env.SPORTMONKS_API_TOKEN);
     const fixturesRaw = await fetchFixtures(teamId, env.SPORTMONKS_API_TOKEN);
     const squadData = await fetchSquad(teamId, env.SPORTMONKS_API_TOKEN);
+    const history = await fetchTeamSeasonHistory(teamId, LEAGUES[0].id, env.SPORTMONKS_API_TOKEN).catch(() => []);
 
     const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
     const squad = squadData.map(squadRow);
 
-    return htmlResponse(renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad));
+    return htmlResponse(renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history));
   } catch (err) {
     return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
   }
+}
+
+async function handleSeasonPage(seasonId, env) {
+  const token = env.SPORTMONKS_API_TOKEN;
+  const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
+  const displayable = seasons
+    .filter((s) => s.finished || s.is_current)
+    .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
+  const selected = seasonId ? displayable.find((s) => s.id === seasonId) : displayable.find((s) => s.finished) || displayable[0];
+
+  if (!selected) {
+    return htmlResponse(renderSeasonPage([], { id: 0, name: "Sezóny" }, [], []));
+  }
+
+  const [standings, scorersRaw] = await Promise.all([
+    fetchStandings(selected.id, token).catch(() => []),
+    fetchTopScorers(selected.id, token).catch(() => []),
+  ]);
+  const table = mainTableStage(standings).map(standingRow);
+  const topScorers = topScorersList(scorersRaw);
+
+  return htmlResponse(renderSeasonPage(displayable, selected, table, topScorers));
 }
 
 async function handleMatchPage(fixtureId, teamId, env) {
@@ -945,6 +1172,12 @@ export default {
       if (!isAuthed(request, env)) return redirectTo("/");
       const teamId = Number(url.searchParams.get("team"));
       return handleMatchPage(Number(matchMatch[1]), teamId, env);
+    }
+
+    const seasonMatch = path.match(/^\/league(?:\/(\d+))?$/);
+    if (seasonMatch && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      return handleSeasonPage(seasonMatch[1] ? Number(seasonMatch[1]) : null, env);
     }
 
     if (path === "/download.csv" && request.method === "POST") {
