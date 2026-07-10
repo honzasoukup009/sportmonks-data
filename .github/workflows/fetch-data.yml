@@ -15,6 +15,7 @@ on:
           - squad
           - team-stats
           - team-fixtures
+          - head-to-head
       id:
         description: "Entity ID, or a name/query for *-search entities"
         required: true
