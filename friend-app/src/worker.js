@@ -6,21 +6,72 @@ const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 const LEAGUES = [{ id: 262, label: "Chance Liga" }];
 
 const PAGE_STYLE = `
-  body { font-family: system-ui, sans-serif; background: #f4f6f8; margin: 0; padding: 1.5rem; color: #1a1a1a; }
-  main { max-width: 720px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
-  h1 { font-size: 1.5rem; margin-top: 0; }
-  h2 { font-size: 1.2rem; margin-top: 2rem; }
-  label { display: block; font-weight: 600; margin: 1rem 0 0.3rem; }
-  input[type=text], input[type=password], select { width: 100%; box-sizing: border-box; padding: 0.6rem; font-size: 1.1rem; border: 1px solid #ccc; border-radius: 8px; }
-  button { margin-top: 1.5rem; width: 100%; padding: 0.8rem; font-size: 1.1rem; font-weight: 600; color: #fff; background: #2563eb; border: none; border-radius: 8px; cursor: pointer; }
-  button:hover { background: #1d4ed8; }
-  button.secondary { background: #16a34a; margin-top: 1rem; }
-  button.secondary:hover { background: #15803d; }
-  .error { color: #b91c1c; font-weight: 600; }
-  .hint { color: #666; font-size: 0.9rem; }
-  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.95rem; }
-  th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; }
-  th { background: #f4f6f8; }
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+  :root {
+    --bg:#0A0D12; --surface:#10141C; --surface2:#171C27; --surface3:#1E2531;
+    --border:rgba(255,255,255,0.08); --border-strong:rgba(255,255,255,0.16);
+    --text:#EAEDF2; --text-dim:#8A93A8; --text-faint:#5B6478;
+    --accent:#4C9AFF; --accent2:#FF8A4C; --danger:#FF5C6C; --gold:#F2C94C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Manrope', sans-serif; }
+  a { color: var(--accent); text-decoration: none; }
+  h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; margin: 0; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 18px; display: flex; flex-direction: column; }
+  .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; }
+  .brand-sub { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+  .nav { display: flex; flex-direction: column; gap: 4px; margin-top: 28px; }
+  .navlink { display: block; padding: 10px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--text-dim); border-left: 3px solid transparent; }
+  .navlink.active { color: var(--accent); background: var(--surface3); border-left-color: var(--accent); }
+  .navlink.disabled { color: var(--text-faint); cursor: default; }
+  .sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-faint); }
+  main { flex: 1; padding: 36px 40px; max-width: 1100px; }
+  .lead { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; margin-top: 20px; }
+  .card h2 { font-size: 17px; margin-bottom: 14px; }
+  form.plain { margin: 0; }
+  label { display: block; font-weight: 600; margin: 1rem 0 .3rem; font-size: 14px; }
+  input[type=text], input[type=password], select { width: 100%; box-sizing: border-box; padding: .6rem; font-size: 1.05rem; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface2); color: var(--text); }
+  button, .btn { display: inline-block; margin-top: 1.2rem; padding: .7rem 1.2rem; font-size: 1rem; font-weight: 600; color: #fff; background: var(--accent); border: none; border-radius: 8px; cursor: pointer; text-align: center; }
+  button.secondary, .btn.secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border-strong); }
+  .error { color: var(--danger); font-weight: 600; }
+  .hint { color: var(--text-faint); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+  th { color: var(--text-faint); text-transform: uppercase; font-size: 11px; letter-spacing: .04em; }
+  .badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; font-weight: 700; font-family: 'Space Grotesk', sans-serif; flex-shrink: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; margin-top: 16px; }
+  .tile { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+  .tile-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
+  .tile-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; margin-top: 4px; }
+  .form-strip { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .form-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; background: var(--surface2); border-radius: 10px; font-size: 11px; }
+  .result-badge { width: 24px; height: 24px; border-radius: 50%; color: #0A0D12; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .group-label { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 6px; }
+  .match-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .match-card { flex-shrink: 0; min-width: 190px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+  .match-card .meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); }
+  .match-card .row { display: flex; align-items: center; justify-content: space-between; }
+  .score-header { display: flex; align-items: center; justify-content: center; gap: 40px; padding: 12px 0; }
+  .score-side { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 150px; }
+  .score-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .score-big { font-family: 'Space Grotesk', sans-serif; font-size: 38px; font-weight: 700; }
+  .status-pill { padding: 3px 10px; border-radius: 999px; background: var(--surface3); color: var(--text-dim); font-size: 11px; font-weight: 600; }
+  .stat-row { margin-bottom: 14px; }
+  .stat-row .labels { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+  .stat-row .labels .label { color: var(--text-dim); }
+  .stat-bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface3); }
+  .stat-bar .home { background: var(--accent); }
+  .stat-bar .away { background: var(--accent2); }
+  .timeline-row { display: grid; grid-template-columns: 1fr 52px 1fr; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; }
+  .timeline-row .minute { text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); background: var(--surface2); border-radius: 999px; padding: 3px 0; }
+  .timeline-row .home-side { text-align: right; }
+  .timeline-row .away-side { text-align: left; }
+  .ev-tag { font-weight: 700; font-size: 10px; margin: 0 5px; }
+  .lineup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .overflow-x { overflow-x: auto; }
 `;
 
 function escapeHtml(value) {
@@ -29,16 +80,35 @@ function escapeHtml(value) {
   ));
 }
 
+function shell(activeNav, body) {
+  return `
+    <div class="app">
+      <aside class="sidebar">
+        <div>
+          <div class="brand-name">LIGASTAT</div>
+          <div class="brand-sub">Chance Liga · Analytika</div>
+        </div>
+        <nav class="nav">
+          <a class="navlink ${activeNav === "team" ? "active" : ""}" href="/team">Tým</a>
+          <span class="navlink disabled">Sezóny (připravujeme)</span>
+        </nav>
+        <div class="sidebar-footer">Zdroj dat: Sportmonks API</div>
+      </aside>
+      <main>${body}</main>
+    </div>
+  `;
+}
+
 function htmlPage(body) {
   return `<!doctype html>
 <html lang="cs">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Soupiska týmu — Sportmonks</title>
+<title>Ligastat — Sportmonks</title>
 <style>${PAGE_STYLE}</style>
 </head>
-<body><main>${body}</main></body>
+<body>${body}</body>
 </html>`;
 }
 
@@ -48,50 +118,45 @@ function htmlResponse(body) {
   });
 }
 
-function renderPinForm({ error } = {}) {
-  return `
-    <h1>Soupiska a zápasy týmu</h1>
-    <form method="POST" action="/">
-      <label for="pin">PIN</label>
-      <input id="pin" type="password" name="pin" required autofocus>
-      <button type="submit">Pokračovat</button>
-    </form>
-    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
-  `;
+function redirectTo(location, extraHeaders = {}) {
+  return new Response(null, { status: 303, headers: { Location: location, ...extraHeaders } });
 }
 
-function renderTeamOptions(leagueGroups) {
-  return leagueGroups
-    .map(
-      (group) => `<optgroup label="${escapeHtml(group.label)}">
-        ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
-      </optgroup>`
-    )
-    .join("");
+// --- Auth: PIN stored in a cookie after the login form, instead of a hidden
+// field on every subsequent form. Lets us use plain <a href> navigation
+// between pages while still gating every Sportmonks call behind the PIN.
+function parseCookies(request) {
+  const header = request.headers.get("Cookie") || "";
+  const out = {};
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    out[part.slice(0, idx).trim()] = decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return out;
 }
 
-function renderTeamForm({ pin, leagueGroups, error } = {}) {
-  const hasTeams = leagueGroups.some((g) => g.teams.length > 0);
-  return `
-    <h1>Vyber tým</h1>
-    ${
-      hasTeams
-        ? `<form method="POST" action="/">
-            <input type="hidden" name="pin" value="${escapeHtml(pin)}">
-            <label for="team_id">Tým</label>
-            <select id="team_id" name="team_id" required>
-              <option value="">-- vyber tým --</option>
-              ${renderTeamOptions(leagueGroups)}
-            </select>
-            <button type="submit">Zobrazit</button>
-          </form>`
-        : `<form method="POST" action="/">
-            <input type="hidden" name="pin" value="${escapeHtml(pin)}">
-            <button type="submit">Zkusit znovu načíst seznam týmů</button>
-          </form>`
-    }
-    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
-  `;
+function sessionCookie(pin) {
+  return `session=${encodeURIComponent(pin)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400`;
+}
+
+function isAuthed(request, env) {
+  return parseCookies(request).session === env.ACCESS_PIN;
+}
+
+function renderPinPage({ error } = {}) {
+  return htmlPage(`
+    <div style="max-width:380px;margin:80px auto;padding:0 20px;">
+      <h1>Ligastat</h1>
+      <p class="lead">Přihlas se PINem, který jsi dostal.</p>
+      <form class="plain card" method="POST" action="/">
+        <label for="pin">PIN</label>
+        <input id="pin" type="password" name="pin" required autofocus>
+        <button type="submit">Pokračovat</button>
+      </form>
+      ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+    </div>
+  `);
 }
 
 async function sportmonksGet(path, token) {
@@ -148,12 +213,13 @@ async function fetchLeagueGroups(token) {
 }
 
 async function fetchTeam(teamId, token) {
-  const payload = await sportmonksGet(`teams/${teamId}`, token);
+  const payload = await sportmonksGet(`teams/${teamId}?include=venue`, token);
   return payload.data || null;
 }
 
 async function fetchSquad(teamId, token) {
-  const payload = await sportmonksGet(`squads/teams/${teamId}?include=player;position`, token);
+  const include = "player.statistics.details.type;position";
+  const payload = await sportmonksGet(`squads/teams/${teamId}?include=${include}`, token);
   return payload.data || [];
 }
 
@@ -165,13 +231,120 @@ async function fetchFixtures(teamId, token) {
   return payload.data || [];
 }
 
+async function fetchFixtureById(fixtureId, token) {
+  const include = [
+    "participants",
+    "scores",
+    "statistics.type",
+    "events.type",
+    "referees.referee",
+    "referees.type",
+    "lineups.player",
+    "lineups.type",
+    "lineups.position",
+    "formations",
+    "league",
+  ].join(";");
+  const payload = await sportmonksGet(`fixtures/${fixtureId}?include=${include}`, token);
+  return payload.data || null;
+}
+
+async function fetchHeadToHead(teamA, teamB, token) {
+  const payload = await sportmonksGet(`fixtures/head-to-head/${teamA}/${teamB}?include=participants;scores;league`, token);
+  return payload.data || [];
+}
+
+// --- Team badge helpers (Sportmonks doesn't give club colors, so we derive a
+// stable one from the team id — same idea as the mockup's fake HSL palette).
+function teamColor(teamId) {
+  const hue = (Number(teamId) * 47) % 360;
+  return `hsl(${hue}, 55%, 45%)`;
+}
+
+function badgeCode(team) {
+  if (team?.short_code) return team.short_code;
+  return (team?.name || "?")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 3);
+}
+
+function badge(team, size = 40) {
+  return `<div class="badge" style="width:${size}px;height:${size}px;background:${teamColor(team.id)};font-size:${Math.round(size * 0.34)}px;">${escapeHtml(badgeCode(team))}</div>`;
+}
+
+function scoreAt(scores, description) {
+  const entries = scores.filter((s) => s.description === description);
+  const home = entries.find((s) => s.score?.participant === "home")?.score?.goals;
+  const away = entries.find((s) => s.score?.participant === "away")?.score?.goals;
+  return home !== undefined && away !== undefined ? `${home}:${away}` : "";
+}
+
+function formatMinute(event) {
+  const extra = event.extra_minute ? `+${event.extra_minute}` : "";
+  return `${event.minute}${extra}'`;
+}
+
 function squadRow(entry) {
+  const stats = latestSeasonStats(entry.player);
   return {
     number: entry.jersey_number ?? "",
     name: entry.player?.display_name ?? entry.player?.name ?? "",
     position: entry.position?.name ?? "",
     birthDate: entry.player?.date_of_birth ?? "",
+    apps: stats.apps ?? "",
+    goals: stats.goals ?? "",
+    assists: stats.assists ?? "",
+    yellow: stats.yellow ?? "",
+    red: stats.red ?? "",
+    minutes: stats.minutes ?? "",
   };
+}
+
+// Season stats come back as one entry per season the player has played in;
+// take the one with the highest season_id (an unstarted/future season simply
+// won't have an entry yet, so the max present id is the most recent real one).
+const PLAYER_STAT_KEYS = {
+  Appearances: "apps",
+  Goals: "goals",
+  Assists: "assists",
+  Yellowcards: "yellow",
+  Redcards: "red",
+  "Minutes Played": "minutes",
+};
+
+function latestSeasonStats(player) {
+  const seasons = player?.statistics || [];
+  if (!seasons.length) return {};
+  const latest = seasons.reduce((a, b) => (b.season_id > a.season_id ? b : a));
+  const out = {};
+  for (const detail of latest.details || []) {
+    const key = PLAYER_STAT_KEYS[detail.type?.name];
+    if (!key) continue;
+    out[key] = detail.value?.total ?? "";
+  }
+  return out;
+}
+
+const POSITION_GROUPS = [
+  { label: "Brankáři", color: "hsl(220,10%,70%)", bg: "hsla(220,10%,70%,0.15)", match: (p) => /goalkeeper/i.test(p) },
+  { label: "Obránci", color: "hsl(210,90%,62%)", bg: "hsla(210,90%,62%,0.15)", match: (p) => /defender/i.test(p) },
+  { label: "Záložníci", color: "hsl(160,70%,52%)", bg: "hsla(160,70%,52%,0.15)", match: (p) => /midfielder/i.test(p) },
+  { label: "Útočníci", color: "hsl(25,90%,62%)", bg: "hsla(25,90%,62%,0.15)", match: (p) => /attacker|forward/i.test(p) },
+];
+
+function groupByPosition(rows, positionOf) {
+  const groups = POSITION_GROUPS.map((g) => ({ ...g, players: [] }));
+  const other = { label: "Ostatní", color: "var(--text-dim)", bg: "var(--surface3)", players: [] };
+  for (const row of rows) {
+    const pos = positionOf(row) || "";
+    const group = groups.find((g) => g.match(pos));
+    (group || other).players.push(row);
+  }
+  return [...groups, other].filter((g) => g.players.length);
 }
 
 // Only statistic types confirmed live against the current plan; anything
@@ -187,30 +360,20 @@ const STAT_LABELS = {
   "Shots On Target": "Střely na branku",
 };
 
-function summarizeStats(fixture, teamId) {
+function statValue(fixture, teamId, typeName) {
   const stats = fixture.statistics || [];
+  const entry = stats.find((s) => s.participant_id === teamId && s.type?.name === typeName);
+  return entry?.data?.value ?? null;
+}
+
+function summarizeStats(fixture, teamId) {
   const parts = [];
-  for (const stat of stats) {
-    if (stat.participant_id !== teamId) continue;
-    const label = STAT_LABELS[stat.type?.name];
-    if (!label) continue;
-    const value = stat.data?.value;
-    if (value === undefined || value === null) continue;
+  for (const [typeName, label] of Object.entries(STAT_LABELS)) {
+    const value = statValue(fixture, teamId, typeName);
+    if (value === null) continue;
     parts.push(`${label}: ${value}`);
   }
   return parts.join(", ");
-}
-
-function scoreAt(scores, description) {
-  const entries = scores.filter((s) => s.description === description);
-  const home = entries.find((s) => s.score?.participant === "home")?.score?.goals;
-  const away = entries.find((s) => s.score?.participant === "away")?.score?.goals;
-  return home !== undefined && away !== undefined ? `${home}:${away}` : "";
-}
-
-function formatMinute(event) {
-  const extra = event.extra_minute ? `+${event.extra_minute}` : "";
-  return `${event.minute}${extra}'`;
 }
 
 function summarizeGoals(fixture, teamNames) {
@@ -265,10 +428,13 @@ function fixtureRow(fixture, teamId) {
     : fixture.result_info || "";
 
   return {
+    id: fixture.id,
     date: (fixture.starting_at || "").slice(0, 10),
     opponent: opponent?.name || "",
+    opponentId: opponent?.id,
     venue,
     score,
+    played: !!fullTime,
     goals: summarizeGoals(fixture, teamNames),
     cards: summarizeCards(fixture, teamNames),
     stats: summarizeStats(fixture, teamId),
@@ -276,73 +442,376 @@ function fixtureRow(fixture, teamId) {
   };
 }
 
-function renderResults(teamName, squad, fixtures, pin) {
-  const squadTableRows = squad
+// --- Team-level aggregates computed from fixtures we already fetch, so we
+// don't need a separate standings/table endpoint just for a team's own record.
+function classifyResult(fixture, teamId) {
+  const full = scoreAt(fixture.scores || [], "CURRENT");
+  if (!full) return null;
+  const [homeGoals, awayGoals] = full.split(":").map(Number);
+  const us = (fixture.participants || []).find((p) => p.id === teamId);
+  const isHome = us?.meta?.location === "home";
+  const ours = isHome ? homeGoals : awayGoals;
+  const theirs = isHome ? awayGoals : homeGoals;
+  if (ours > theirs) return "V";
+  if (ours < theirs) return "P";
+  return "R";
+}
+
+const RESULT_COLOR = { V: "var(--accent)", R: "var(--text-dim)", P: "var(--danger)" };
+
+function teamSummary(fixturesRaw, teamId) {
+  let played = 0, wins = 0, draws = 0, losses = 0, gf = 0, ga = 0;
+  for (const fixture of fixturesRaw) {
+    const result = classifyResult(fixture, teamId);
+    if (!result) continue;
+    played++;
+    if (result === "V") wins++;
+    else if (result === "R") draws++;
+    else losses++;
+    const full = scoreAt(fixture.scores || [], "CURRENT");
+    const [h, a] = full.split(":").map(Number);
+    const isHome = (fixture.participants || []).find((p) => p.id === teamId)?.meta?.location === "home";
+    gf += isHome ? h : a;
+    ga += isHome ? a : h;
+  }
+  return { played, wins, draws, losses, gf, ga, points: wins * 3 + draws };
+}
+
+function recentForm(fixturesRaw, teamId, count = 5) {
+  return fixturesRaw
+    .filter((f) => classifyResult(f, teamId))
+    .slice()
+    .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1))
+    .slice(0, count)
+    .map((f) => {
+      const result = classifyResult(f, teamId);
+      const opponent = (f.participants || []).find((p) => p.id !== teamId);
+      return { result, opponent: opponent?.name || "", score: scoreAt(f.scores || [], "CURRENT") };
+    });
+}
+
+// ============================== Views ==============================
+
+function renderTeamPicker({ leagueGroups, error } = {}) {
+  const hasTeams = leagueGroups && leagueGroups.some((g) => g.teams.length > 0);
+  const options = (leagueGroups || [])
     .map(
-      (row) => `<tr>
-        <td>${escapeHtml(row.number)}</td>
-        <td>${escapeHtml(row.name)}</td>
-        <td>${escapeHtml(row.position)}</td>
-        <td>${escapeHtml(row.birthDate)}</td>
-      </tr>`
+      (group) => `<optgroup label="${escapeHtml(group.label)}">
+        ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
+      </optgroup>`
     )
     .join("");
 
-  const fixturesTableRows = fixtures
-    .map(
-      (row) => `<tr>
-        <td>${escapeHtml(row.date)}</td>
-        <td>${escapeHtml(row.opponent)}</td>
-        <td>${escapeHtml(row.venue)}</td>
-        <td>${escapeHtml(row.score)}</td>
-        <td>${escapeHtml(row.goals)}</td>
-        <td>${escapeHtml(row.cards)}</td>
-        <td>${escapeHtml(row.stats)}</td>
-        <td>${escapeHtml(row.referee)}</td>
-      </tr>`
-    )
-    .join("");
+  const body = `
+    <h1>Vyber tým</h1>
+    <p class="lead">Zobrazíš profil týmu, letošní zápasy a statistiky.</p>
+    <div class="card">
+      ${
+        hasTeams
+          ? `<form class="plain" method="POST" action="/team">
+              <label for="team_id">Tým</label>
+              <select id="team_id" name="team_id" required>
+                <option value="">-- vyber tým --</option>
+                ${options}
+              </select>
+              <button type="submit">Zobrazit</button>
+            </form>`
+          : `<form class="plain" method="GET" action="/team">
+              <button type="submit">Zkusit znovu načíst seznam týmů</button>
+            </form>`
+      }
+      ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
+    </div>
+  `;
+  return shell("team", body);
+}
 
+function renderMatchCard(row) {
+  const label = row.played ? row.score.split(" ")[0] : "—";
+  const status = row.played ? "Konec" : row.date;
   return `
-    <h1>${escapeHtml(teamName)}</h1>
-
-    <h2>Soupiska</h2>
-    <table>
-      <thead><tr><th>Číslo</th><th>Jméno</th><th>Pozice</th><th>Datum narození</th></tr></thead>
-      <tbody>${squadTableRows}</tbody>
-    </table>
-    <form method="POST" action="/download.csv">
-      <input type="hidden" name="kind" value="squad">
-      <input type="hidden" name="team" value="${escapeHtml(teamName)}">
-      <input type="hidden" name="rows" value='${escapeHtml(JSON.stringify(squad))}'>
-      <button type="submit" class="secondary">Stáhnout soupisku jako Excel (CSV)</button>
-    </form>
-
-    <h2>Zápasy — ${new Date().getUTCFullYear()}</h2>
-    ${
-      fixtures.length
-        ? `<div style="overflow-x: auto;">
-          <table>
-            <thead><tr><th>Datum</th><th>Soupeř</th><th>Doma/Venku</th><th>Výsledek</th><th>Góly</th><th>Karty</th><th>Statistiky</th><th>Rozhodčí</th></tr></thead>
-            <tbody>${fixturesTableRows}</tbody>
-          </table>
-          </div>
-          <p class="hint">Góly, karty a statistiky se zobrazují jen u odehraných zápasů a jen pokud je Sportmonks pro danou soutěž eviduje.</p>
-          <form method="POST" action="/download.csv">
-            <input type="hidden" name="kind" value="fixtures">
-            <input type="hidden" name="team" value="${escapeHtml(teamName)}">
-            <input type="hidden" name="rows" value='${escapeHtml(JSON.stringify(fixtures))}'>
-            <button type="submit" class="secondary">Stáhnout zápasy jako Excel (CSV)</button>
-          </form>`
-        : `<p class="hint">Pro tento tým letos nejsou žádné zápasy v evidenci.</p>`
-    }
-
-    <form method="POST" action="/">
-      <input type="hidden" name="pin" value="${escapeHtml(pin)}">
-      <button type="submit">Hledat jiný tým</button>
-    </form>
+    <a class="match-card" href="/match/${row.id}?team=${row.__teamId}">
+      <div class="meta"><span>${escapeHtml(row.date)}</span><span>${row.venue ? escapeHtml(row.venue) : ""}</span></div>
+      <div class="row">
+        <span class="mono" style="font-size:13px;">${escapeHtml(row.opponent)}</span>
+        <span class="mono" style="font-weight:600;">${escapeHtml(label)}</span>
+      </div>
+      <div class="hint" style="text-align:right;">${escapeHtml(status)}</div>
+    </a>
   `;
 }
+
+function renderTeamPage(team, fixturesRaw, fixtureRows, squad) {
+  const summary = teamSummary(fixturesRaw, team.id);
+  const form = recentForm(fixturesRaw, team.id);
+  const tiles = [
+    { label: "Zápasy", value: summary.played },
+    { label: "V-R-P", value: `${summary.wins}-${summary.draws}-${summary.losses}` },
+    { label: "Body", value: summary.points },
+    { label: "Skóre", value: `${summary.gf}:${summary.ga}` },
+  ];
+
+  const formStrip = form
+    .map(
+      (f) => `<div class="form-chip">
+        <div class="result-badge" style="background:${RESULT_COLOR[f.result]};">${f.result}</div>
+        <div>${escapeHtml(f.opponent)}</div>
+        <div class="mono">${escapeHtml(f.score)}</div>
+      </div>`
+    )
+    .join("");
+
+  const matchCards = fixtureRows
+    .slice()
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .map((r) => renderMatchCard({ ...r, __teamId: team.id }))
+    .join("");
+
+  const squadGroups = groupByPosition(squad, (row) => row.position);
+  const squadTable = squadGroups
+    .map(
+      (group) => `
+        <div class="group-label" style="color:${group.color};background:${group.bg};">${escapeHtml(group.label)}</div>
+        <table>
+          <thead><tr><th>Č.</th><th>Hráč</th><th>Z</th><th>G</th><th>A</th><th>ŽK</th><th>ČK</th><th>Min</th></tr></thead>
+          <tbody>
+            ${group.players
+              .map(
+                (p) => `<tr>
+                  <td class="mono">${escapeHtml(p.number)}</td>
+                  <td>${escapeHtml(p.name)}</td>
+                  <td class="mono">${escapeHtml(p.apps)}</td>
+                  <td class="mono">${escapeHtml(p.goals)}</td>
+                  <td class="mono">${escapeHtml(p.assists)}</td>
+                  <td class="mono">${escapeHtml(p.yellow)}</td>
+                  <td class="mono">${escapeHtml(p.red)}</td>
+                  <td class="mono">${escapeHtml(p.minutes)}</td>
+                </tr>`
+              )
+              .join("")}
+          </tbody>
+        </table>
+      `
+    )
+    .join("");
+
+  const body = `
+    <div style="display:flex;align-items:center;gap:20px;">
+      ${badge(team, 60)}
+      <div>
+        <h1>${escapeHtml(team.name)}</h1>
+        <div class="lead">${escapeHtml(team.venue?.name || "")}</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Sezóna ${new Date().getUTCFullYear()}</h2>
+      <div class="tiles">
+        ${tiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+      </div>
+      ${form.length ? `<div class="form-strip">${formStrip}</div>` : ""}
+    </div>
+
+    <div class="card">
+      <h2>Zápasy</h2>
+      ${fixtureRows.length ? `<div class="match-list">${matchCards}</div>` : `<p class="hint">Pro tento tým letos nejsou žádné zápasy v evidenci.</p>`}
+    </div>
+
+    <div class="card">
+      <h2>Kádr</h2>
+      ${squadTable}
+      <form class="plain" method="POST" action="/download.csv" style="margin-top:16px;">
+        <input type="hidden" name="kind" value="squad">
+        <input type="hidden" name="team" value="${escapeHtml(team.name)}">
+        <input type="hidden" name="rows" value='${escapeHtml(JSON.stringify(squad))}'>
+        <button type="submit" class="secondary">Stáhnout kádr jako Excel (CSV)</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Zápasy — export</h2>
+      <p class="hint">Detaily jednotlivých zápasů (góly, karty, statistiky) najdeš po kliknutí na zápas výše. Kompletní přehled letošních zápasů si můžeš stáhnout i jako tabulku.</p>
+      <form class="plain" method="POST" action="/download.csv">
+        <input type="hidden" name="kind" value="fixtures">
+        <input type="hidden" name="team" value="${escapeHtml(team.name)}">
+        <input type="hidden" name="rows" value='${escapeHtml(JSON.stringify(fixtureRows))}'>
+        <button type="submit" class="secondary">Stáhnout zápasy jako Excel (CSV)</button>
+      </form>
+    </div>
+
+    <a class="btn secondary" href="/team" style="margin-top:20px;">Vybrat jiný tým</a>
+  `;
+  return shell("team", body);
+}
+
+function statBarRow(fixture, homeId, awayId, typeName, label) {
+  const homeVal = statValue(fixture, homeId, typeName);
+  const awayVal = statValue(fixture, awayId, typeName);
+  if (homeVal === null && awayVal === null) return "";
+  const h = Number(homeVal) || 0;
+  const a = Number(awayVal) || 0;
+  const total = h + a || 1;
+  const hp = Math.round((h / total) * 100);
+  return `
+    <div class="stat-row">
+      <div class="labels"><span class="mono">${escapeHtml(homeVal ?? "-")}</span><span class="label">${escapeHtml(label)}</span><span class="mono">${escapeHtml(awayVal ?? "-")}</span></div>
+      <div class="stat-bar"><div class="home" style="width:${hp}%;"></div><div class="away" style="width:${100 - hp}%;"></div></div>
+    </div>
+  `;
+}
+
+const EVENT_STYLE = {
+  Goal: { label: "GÓL", color: "var(--accent)" },
+  Penalty: { label: "PEN", color: "var(--accent)" },
+  Yellowcard: { label: "ŽK", color: "var(--gold)" },
+  Redcard: { label: "ČK", color: "var(--danger)" },
+  "Yellow/Red card": { label: "2.ŽK", color: "var(--danger)" },
+};
+
+function renderTimeline(fixture, homeId) {
+  const events = (fixture.events || [])
+    .filter((e) => EVENT_STYLE[e.type?.name])
+    .sort((a, b) => Number(a.minute) - Number(b.minute));
+
+  if (!events.length) return `<p class="hint">Žádné zaznamenané události.</p>`;
+
+  return events
+    .map((e) => {
+      const style = EVENT_STYLE[e.type.name];
+      const isHome = e.participant_id === homeId;
+      const text = `<span class="ev-tag" style="color:${style.color};">${style.label}</span>${escapeHtml(e.player_name || "?")}`;
+      return `
+        <div class="timeline-row">
+          <div class="home-side">${isHome ? text : ""}</div>
+          <div class="minute">${formatMinute(e)}</div>
+          <div class="away-side">${!isHome ? text : ""}</div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderLineupColumn(fixture, teamId, teamName) {
+  const lineups = (fixture.lineups || []).filter((l) => l.team_id === teamId);
+  const starters = lineups.filter((l) => l.type?.name === "Lineup");
+  const bench = lineups.filter((l) => l.type?.name === "Bench");
+  const formation = (fixture.formations || []).find((f) => f.participant_id === teamId)?.formation || "";
+
+  const groups = groupByPosition(
+    starters.map((l) => ({ jersey: l.jersey_number, name: l.player_name, position: l.position?.name })),
+    (row) => row.position
+  );
+
+  const groupsHtml = groups
+    .map(
+      (g) => `
+        <div class="group-label" style="color:${g.color};background:${g.bg};">${escapeHtml(g.label)}</div>
+        ${g.players.map((p) => `<div style="display:flex;gap:8px;font-size:13px;padding:3px 0;"><span class="mono" style="color:var(--text-faint);width:20px;">${escapeHtml(p.jersey)}</span><span>${escapeHtml(p.name)}</span></div>`).join("")}
+      `
+    )
+    .join("");
+
+  const benchText = bench.map((p) => `${p.jersey_number || ""} ${p.player_name}`).join(" · ");
+
+  return `
+    <div>
+      <div class="hint" style="margin-bottom:8px;">${escapeHtml(teamName)} ${formation ? `· <span class="mono">${escapeHtml(formation)}</span>` : ""}</div>
+      ${starters.length ? groupsHtml : `<p class="hint">Sestava zatím není k dispozici.</p>`}
+      ${bench.length ? `<div class="hint" style="margin-top:10px;">Náhradníci: ${escapeHtml(benchText)}</div>` : ""}
+    </div>
+  `;
+}
+
+function renderH2H(h2h, teamId) {
+  if (!h2h.length) return `<p class="hint">Žádné dřívější vzájemné zápasy v evidenci.</p>`;
+  return `
+    <div class="overflow-x">
+      <table>
+        <thead><tr><th>Datum</th><th>Soutěž</th><th>Skóre</th><th></th></tr></thead>
+        <tbody>
+          ${h2h
+            .map((f) => {
+              const result = classifyResult(f, teamId);
+              const score = scoreAt(f.scores || [], "CURRENT") || f.result_info || "";
+              return `<tr>
+                <td>${escapeHtml((f.starting_at || "").slice(0, 10))}</td>
+                <td>${escapeHtml(f.league?.name || "")}</td>
+                <td class="mono">${escapeHtml(score)}</td>
+                <td>${result ? `<span class="result-badge" style="background:${RESULT_COLOR[result]};">${result}</span>` : ""}</td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderMatchPage(fixture, teamId, h2h) {
+  const participants = fixture.participants || [];
+  const home = participants.find((p) => p.meta?.location === "home");
+  const away = participants.find((p) => p.meta?.location === "away");
+  const fullTime = scoreAt(fixture.scores || [], "CURRENT");
+  const halfTime = scoreAt(fixture.scores || [], "1ST_HALF");
+  const played = !!fullTime;
+  const referee = mainReferee(fixture);
+
+  const statRows = Object.entries(STAT_LABELS)
+    .map(([typeName, label]) => statBarRow(fixture, home?.id, away?.id, typeName, label))
+    .join("");
+
+  const meta = [fixture.league?.name, (fixture.starting_at || "").slice(0, 16).replace("T", " "), referee]
+    .filter(Boolean)
+    .join(" · ");
+
+  const body = `
+    <h1>Zápas</h1>
+    <p class="lead">${escapeHtml(meta)}</p>
+
+    <div class="card">
+      <div class="score-header">
+        <div class="score-side">${badge(home, 56)}<div style="font-weight:600;text-align:center;">${escapeHtml(home?.name || "")}</div></div>
+        <div class="score-mid">
+          <div class="score-big mono">${escapeHtml(played ? fullTime : "—")}</div>
+          <div class="status-pill">${played ? `${halfTime ? "poločas " + escapeHtml(halfTime) : ""} Konec` : "Zápas se ještě neodehrál"}</div>
+        </div>
+        <div class="score-side">${badge(away, 56)}<div style="font-weight:600;text-align:center;">${escapeHtml(away?.name || "")}</div></div>
+      </div>
+    </div>
+
+    ${
+      played
+        ? `<div class="card">
+            <h2>Klíčové statistiky</h2>
+            ${statRows || `<p class="hint">Pro tento zápas nejsou statistiky evidované.</p>`}
+          </div>
+
+          <div class="card">
+            <h2>Průběh zápasu</h2>
+            ${renderTimeline(fixture, home?.id)}
+          </div>
+
+          <div class="card">
+            <h2>Sestavy</h2>
+            <div class="lineup-cols">
+              ${renderLineupColumn(fixture, home?.id, home?.name || "")}
+              ${renderLineupColumn(fixture, away?.id, away?.name || "")}
+            </div>
+          </div>`
+        : ""
+    }
+
+    <div class="card">
+      <h2>Vzájemné zápasy</h2>
+      ${renderH2H(h2h, teamId)}
+    </div>
+
+    <a class="btn secondary" href="/team/${teamId}" style="margin-top:20px;">Zpět na tým</a>
+  `;
+  return shell("team", body);
+}
+
+// ============================== CSV export ==============================
 
 function escapeCsvValue(value) {
   const str = String(value ?? "");
@@ -351,9 +820,9 @@ function escapeCsvValue(value) {
 
 const CSV_SCHEMAS = {
   squad: {
-    header: ["Číslo", "Jméno", "Pozice", "Datum narození"],
-    toRow: (r) => [r.number, r.name, r.position, r.birthDate],
-    filenameSuffix: "soupiska",
+    header: ["Číslo", "Jméno", "Pozice", "Datum narození", "Zápasy", "Góly", "Asistence", "Žluté", "Červené", "Minuty"],
+    toRow: (r) => [r.number, r.name, r.position, r.birthDate, r.apps, r.goals, r.assists, r.yellow, r.red, r.minutes],
+    filenameSuffix: "kadr",
   },
   fixtures: {
     header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí"],
@@ -367,54 +836,6 @@ function buildCsv(kind, rows) {
   const lines = [schema.header, ...rows.map(schema.toRow)].map((line) => line.map(escapeCsvValue).join(";"));
   // Leading BOM + semicolon delimiter so Czech-locale Excel opens it correctly by default.
   return "﻿" + lines.join("\r\n");
-}
-
-// Step 1: PIN only. On success, loads the team dropdown (this is the first
-// point any Sportmonks call happens, so an unauthenticated visitor can't
-// burn API quota just by loading the page).
-async function handlePinStep(form, env) {
-  const pin = (form.get("pin") || "").toString();
-  if (pin !== env.ACCESS_PIN) {
-    return htmlResponse(renderPinForm({ error: "Nesprávný PIN." }));
-  }
-
-  try {
-    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN);
-    return htmlResponse(renderTeamForm({ pin, leagueGroups }));
-  } catch (err) {
-    return htmlResponse(renderTeamForm({ pin, leagueGroups: [], error: err.message }));
-  }
-}
-
-// Step 2: PIN + chosen team_id. Fetches team name, squad, and fixtures.
-async function handleTeamStep(form, env) {
-  const pin = (form.get("pin") || "").toString();
-  const teamId = Number(form.get("team_id"));
-
-  if (pin !== env.ACCESS_PIN) {
-    return htmlResponse(renderPinForm({ error: "Nesprávný PIN." }));
-  }
-  if (!teamId) {
-    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
-    return htmlResponse(renderTeamForm({ pin, leagueGroups, error: "Vyber prosím tým ze seznamu." }));
-  }
-
-  try {
-    const team = await fetchTeam(teamId, env.SPORTMONKS_API_TOKEN);
-    const squadData = await fetchSquad(teamId, env.SPORTMONKS_API_TOKEN);
-    const fixturesData = await fetchFixtures(teamId, env.SPORTMONKS_API_TOKEN);
-
-    const squad = squadData.map(squadRow);
-    const fixtures = fixturesData
-      .slice()
-      .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1))
-      .map((f) => fixtureRow(f, teamId));
-
-    return htmlResponse(renderResults(team?.name || "Tým", squad, fixtures, pin));
-  } catch (err) {
-    const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
-    return htmlResponse(renderTeamForm({ pin, leagueGroups, error: err.message }));
-  }
 }
 
 async function handleDownload(request) {
@@ -439,20 +860,97 @@ async function handleDownload(request) {
   });
 }
 
+// ============================== Route handlers ==============================
+
+async function handleTeamPage(teamId, env) {
+  try {
+    const team = await fetchTeam(teamId, env.SPORTMONKS_API_TOKEN);
+    const fixturesRaw = await fetchFixtures(teamId, env.SPORTMONKS_API_TOKEN);
+    const squadData = await fetchSquad(teamId, env.SPORTMONKS_API_TOKEN);
+
+    const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
+    const squad = squadData.map(squadRow);
+
+    return htmlResponse(renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad));
+  } catch (err) {
+    return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
+  }
+}
+
+async function handleMatchPage(fixtureId, teamId, env) {
+  try {
+    const fixture = await fetchFixtureById(fixtureId, env.SPORTMONKS_API_TOKEN);
+    if (!fixture) throw new Error("Zápas se nepodařilo najít.");
+
+    const participants = fixture.participants || [];
+    const home = participants.find((p) => p.meta?.location === "home");
+    const away = participants.find((p) => p.meta?.location === "away");
+    let h2h = [];
+    if (home && away) {
+      const all = await fetchHeadToHead(home.id, away.id, env.SPORTMONKS_API_TOKEN);
+      h2h = all.filter((f) => f.id !== fixture.id).sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
+    }
+
+    return htmlResponse(renderMatchPage(fixture, teamId, h2h));
+  } catch (err) {
+    return redirectTo(`/team/${teamId}`);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const path = url.pathname;
 
-    if (url.pathname === "/" && request.method === "GET") {
-      return htmlResponse(renderPinForm());
+    if (path === "/" && request.method === "GET") {
+      return htmlResponse(renderPinPage());
     }
-    if (url.pathname === "/" && request.method === "POST") {
+    if (path === "/" && request.method === "POST") {
       const form = await request.formData();
-      return form.get("team_id") ? handleTeamStep(form, env) : handlePinStep(form, env);
+      const pin = (form.get("pin") || "").toString();
+      if (pin !== env.ACCESS_PIN) {
+        return htmlResponse(renderPinPage({ error: "Nesprávný PIN." }));
+      }
+      return redirectTo("/team", { "Set-Cookie": sessionCookie(pin) });
     }
-    if (url.pathname === "/download.csv" && request.method === "POST") {
+
+    if (path === "/team" && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      try {
+        const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN);
+        return htmlResponse(renderTeamPicker({ leagueGroups }));
+      } catch (err) {
+        return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
+      }
+    }
+    if (path === "/team" && request.method === "POST") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      const form = await request.formData();
+      const teamId = form.get("team_id");
+      if (!teamId) {
+        const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
+        return htmlResponse(renderTeamPicker({ leagueGroups, error: "Vyber prosím tým ze seznamu." }));
+      }
+      return redirectTo(`/team/${teamId}`);
+    }
+
+    const teamMatch = path.match(/^\/team\/(\d+)$/);
+    if (teamMatch && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      return handleTeamPage(Number(teamMatch[1]), env);
+    }
+
+    const matchMatch = path.match(/^\/match\/(\d+)$/);
+    if (matchMatch && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      const teamId = Number(url.searchParams.get("team"));
+      return handleMatchPage(Number(matchMatch[1]), teamId, env);
+    }
+
+    if (path === "/download.csv" && request.method === "POST") {
       return handleDownload(request);
     }
+
     return new Response("Not found", { status: 404 });
   },
 };

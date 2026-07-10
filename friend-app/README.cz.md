@@ -1,8 +1,10 @@
-# Vyhledávač soupisek a zápasů pro kamaráda (bez GitHubu)
+# Ligastat — dashboard pro kamaráda (bez GitHubu)
 
-Jednoduchá webová stránka s formulářem: kamarád napíše název týmu a PIN, dostane soupisku hráčů a přehled
-letošních zápasů (výsledky + základní statistiky) rovnou na stránce, obojí si může stáhnout jako Excel
-(CSV). Běží na Cloudflare Workers zdarma, bez nutnosti mít GitHub účet — kamarád jen otevře odkaz v prohlížeči.
+Tmavý dashboard ve stylu profesionální sportovní analytiky: kamarád zadá PIN, vybere tým z Chance Ligy
+a dostane profil týmu (kádr se sezónními statistikami, forma, přehled zápasů) i detail jednotlivého
+zápasu (skóre, klíčové statistiky, průběh zápasu, sestavy, vzájemné zápasy). Soupisku i zápasy si může
+stáhnout jako Excel (CSV). Běží na Cloudflare Workers zdarma, bez nutnosti mít GitHub účet — kamarád jen
+otevře odkaz v prohlížeči.
 
 ## Jednorázové nastavení (děláš ty)
 
@@ -39,19 +41,23 @@ letošních zápasů (výsledky + základní statistiky) rovnou na stránce, obo
 ## Jak to kamarád používá
 
 1. Otevře odkaz v prohlížeči (funguje i na mobilu).
-2. Zadá PIN a klikne na "Pokračovat".
-3. Vybere tým z rozbalovacího seznamu (týmy Chance Ligy — české nejvyšší soutěže) a klikne na "Zobrazit".
-4. Uvidí soupisku hráčů a přehled letošních zápasů (datum, soupeř, doma/venku, výsledek, pár statistik jako
-   rohy, držení míče, žluté/červené karty — pokud je Sportmonks pro danou soutěž eviduje).
-5. Volitelně klikne na "Stáhnout jako Excel (CSV)" u soupisky nebo u zápasů — soubor se stáhne do
-   počítače/mobilu.
+2. Zadá PIN a klikne na "Pokračovat" — přihlášení se pamatuje (cookie na 24 hodin), nemusí PIN zadávat
+   znovu při každé stránce.
+3. Vybere tým z rozbalovacího seznamu (týmy Chance Ligy — české nejvyšší soutěže).
+4. Na stránce **Tým** vidí: sezónní přehled (zápasy, V-R-P, body, skóre), formu (posledních 5 zápasů),
+   klikací přehled letošních zápasů a kompletní kádr se sezónními statistikami každého hráče (zápasy,
+   góly, asistence, karty, minuty).
+5. Kliknutím na konkrétní zápas se dostane na stránku **Zápas**: skóre s poločasem, klíčové statistiky
+   (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), průběh zápasu (góly a karty s minutou
+   a jménem hráče), sestavy obou týmů (podle formace a postu) a posledních 5 vzájemných zápasů.
+6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů.
 
-Sportmonks se volá až po zadání správného PINu (samotné otevření stránky nic nestahuje) — dropdown se
-naplní teprve poté, co PIN projde, aby cizí návštěvník s odkazem, ale bez PINu, nemohl čerpat tvůj limit.
+Sportmonks se volá až po zadání správného PINu (samotné otevření stránky nic nestahuje) — žádná data se
+nenačtou, dokud PIN neprojde, aby cizí návštěvník s odkazem, ale bez PINu, nemohl čerpat tvůj limit.
 
-Statistiky se ukazují jen u typů, které jsme zatím ověřili (rohy, držení míče, žluté/červené karty,
-asistence). Nový placený tarif může nabízet i další typy statistik (např. střely na branku) — kód je
-zatím nezobrazuje, dokud je neověříme naostro.
+Statistiky se ukazují jen u typů, které jsme ověřili naostro (rohy, držení míče, fauly, střely, žluté/
+červené karty, asistence). Sezónní přehled soutěže (tabulka, nejlepší střelci, historie sezón) zatím
+chybí — je to plánovaný další krok, potřebuje jiné Sportmonks endpointy, které ještě nejsou ověřené.
 
 ## Údržba
 
