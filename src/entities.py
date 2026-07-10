@@ -34,4 +34,16 @@ ENTITY_ENDPOINTS = {
         "path": "fixtures/head-to-head/{id}/{start}",
         "include": "participants;scores",
     },
+    "standings": {
+        "path": "standings/seasons/{id}",
+        "include": "participant",
+    },
+    "topscorers": {
+        "path": "topscorers/seasons/{id}",
+        "include": "player;participant",
+    },
+    "league-seasons": {
+        "path": "leagues/{id}",
+        "include": "seasons",
+    },
 }

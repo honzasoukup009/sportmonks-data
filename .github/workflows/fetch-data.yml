@@ -16,6 +16,9 @@ on:
           - team-stats
           - team-fixtures
           - head-to-head
+          - standings
+          - topscorers
+          - league-seasons
       id:
         description: "Entity ID, or a name/query for *-search entities"
         required: true
