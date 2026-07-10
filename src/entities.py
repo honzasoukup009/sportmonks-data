@@ -27,6 +27,6 @@ ENTITY_ENDPOINTS = {
     },
     "team-fixtures": {
         "path": "fixtures/between/{start}/{end}/{id}",
-        "include": "participants;scores;statistics.type;events.type",
+        "include": "participants;scores;statistics.type;events.type;referees.referee;referees.type",
     },
 }
