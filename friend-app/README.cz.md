@@ -50,8 +50,10 @@ otevře odkaz v prohlížeči.
    karty, minuty).
 5. Kliknutím na konkrétní zápas se dostane na stránku **Zápas**: skóre s poločasem, klíčové statistiky
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), průběh zápasu (góly a karty s minutou
-   a jménem hráče), sestavy obou týmů (podle formace a postu) a posledních 5 vzájemných zápasů.
-6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů.
+   a jménem hráče), sestavy obou týmů (podle formace a postu, u každého hráče hodnocení, odehrané minuty,
+   přihrávky a střely) a posledních 5 vzájemných zápasů.
+6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů; na stránce
+   Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů.
 7. V postranním menu klikne na **Sezóny**: tabulka Chance Ligy (aktuální i minulé ročníky přes chipy
    nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc je
    "Historie sezón" — umístění a body týmu v předchozích ročnících, s odkazem na zápasy dané sezóny.

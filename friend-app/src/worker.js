@@ -277,6 +277,7 @@ async function fetchFixtureById(fixtureId, token) {
     "lineups.player",
     "lineups.type",
     "lineups.position",
+    "lineups.details.type",
     "formations",
     "league",
   ].join(";");
@@ -486,6 +487,50 @@ function summarizeStats(fixture, teamId) {
     parts.push(`${label}: ${value}`);
   }
   return parts.join(", ");
+}
+
+// Small, deliberately narrow set of per-player match stats (confirmed live
+// via lineups.details.type — Sportmonks offers dozens more, e.g. tackles,
+// duels, crosses, but a full box score per player is too much for a lineup
+// list of 20+ names).
+const PLAYER_MATCH_STAT_TYPES = {
+  Rating: "rating",
+  "Minutes Played": "minutes",
+  Passes: "passes",
+  "Shots Total": "shots",
+};
+
+function playerMatchStats(entry) {
+  const out = {};
+  for (const d of entry.details || []) {
+    const key = PLAYER_MATCH_STAT_TYPES[d.type?.name];
+    if (key) out[key] = d.data?.value;
+  }
+  return out;
+}
+
+function formatPlayerStatLine(stats) {
+  const parts = [];
+  if (stats.rating !== undefined) parts.push(`hodn. ${stats.rating}`);
+  if (stats.minutes !== undefined) parts.push(`${stats.minutes}'`);
+  if (stats.passes !== undefined) parts.push(`${stats.passes} přihr.`);
+  if (stats.shots !== undefined) parts.push(`${stats.shots} stř.`);
+  return parts.join(" · ");
+}
+
+function lineupRow(entry, teamName) {
+  const stats = playerMatchStats(entry);
+  return {
+    team: teamName,
+    number: entry.jersey_number ?? "",
+    name: entry.player_name || "",
+    position: entry.position?.name || "",
+    role: entry.type?.name === "Lineup" ? "Základní sestava" : "Náhradník",
+    rating: stats.rating ?? "",
+    minutes: stats.minutes ?? "",
+    passes: stats.passes ?? "",
+    shots: stats.shots ?? "",
+  };
 }
 
 function summarizeGoals(fixture, teamNames) {
@@ -837,7 +882,12 @@ function renderLineupColumn(fixture, teamId, teamName) {
   const formation = (fixture.formations || []).find((f) => f.participant_id === teamId)?.formation || "";
 
   const groups = groupByPosition(
-    starters.map((l) => ({ jersey: l.jersey_number, name: l.player_name, position: l.position?.name })),
+    starters.map((l) => ({
+      jersey: l.jersey_number,
+      name: l.player_name,
+      position: l.position?.name,
+      statLine: formatPlayerStatLine(playerMatchStats(l)),
+    })),
     (row) => row.position
   );
 
@@ -845,7 +895,14 @@ function renderLineupColumn(fixture, teamId, teamName) {
     .map(
       (g) => `
         <div class="group-label" style="color:${g.color};background:${g.bg};">${escapeHtml(g.label)}</div>
-        ${g.players.map((p) => `<div style="display:flex;gap:8px;font-size:13px;padding:3px 0;"><span class="mono" style="color:var(--text-faint);width:20px;">${escapeHtml(p.jersey)}</span><span>${escapeHtml(p.name)}</span></div>`).join("")}
+        ${g.players
+          .map(
+            (p) => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0;">
+              <span style="display:flex;gap:8px;"><span class="mono" style="color:var(--text-faint);width:20px;">${escapeHtml(p.jersey)}</span><span>${escapeHtml(p.name)}</span></span>
+              <span class="mono hint">${escapeHtml(p.statLine)}</span>
+            </div>`
+          )
+          .join("")}
       `
     )
     .join("");
@@ -979,6 +1036,11 @@ function renderMatchPage(fixture, teamId, h2h, seasonId) {
     .filter(Boolean)
     .join(" · ");
 
+  const allLineupRows = (fixture.lineups || []).map((l) =>
+    lineupRow(l, l.team_id === home?.id ? home?.name || "" : away?.name || "")
+  );
+  const matchLabel = `${home?.name || ""} vs ${away?.name || ""}`;
+
   const body = `
     <h1>Zápas</h1>
     <p class="lead">${escapeHtml(meta)}</p>
@@ -1012,6 +1074,16 @@ function renderMatchPage(fixture, teamId, h2h, seasonId) {
               ${renderLineupColumn(fixture, home?.id, home?.name || "")}
               ${renderLineupColumn(fixture, away?.id, away?.name || "")}
             </div>
+            ${
+              allLineupRows.length
+                ? `<form class="plain" method="POST" action="/download.csv" style="margin-top:16px;">
+                    <input type="hidden" name="kind" value="lineups">
+                    <input type="hidden" name="team" value="${escapeHtml(matchLabel)}">
+                    <input type="hidden" name="rows" value='${escapeHtml(JSON.stringify(allLineupRows))}'>
+                    <button type="submit" class="secondary">Stáhnout sestavy jako Excel (CSV)</button>
+                  </form>`
+                : ""
+            }
           </div>`
         : ""
     }
@@ -1043,6 +1115,11 @@ const CSV_SCHEMAS = {
     header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí"],
     toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee],
     filenameSuffix: "zapasy",
+  },
+  lineups: {
+    header: ["Tým", "Číslo", "Jméno", "Pozice", "Role", "Hodnocení", "Minuty", "Přihrávky", "Střely"],
+    toRow: (r) => [r.team, r.number, r.name, r.position, r.role, r.rating, r.minutes, r.passes, r.shots],
+    filenameSuffix: "sestavy",
   },
 };
 
