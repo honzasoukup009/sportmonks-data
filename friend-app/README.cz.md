@@ -44,16 +44,17 @@ otevře odkaz v prohlížeči.
 2. Zadá PIN a klikne na "Pokračovat" — přihlášení se pamatuje (cookie na 24 hodin), nemusí PIN zadávat
    znovu při každé stránce.
 3. Vybere tým z rozbalovacího seznamu (týmy Chance Ligy — české nejvyšší soutěže).
-4. Na stránce **Tým** vidí: sezónní přehled (zápasy, V-R-P, body, skóre), formu (posledních 5 zápasů),
-   klikací přehled letošních zápasů a kompletní kádr se sezónními statistikami každého hráče (zápasy,
-   góly, asistence, karty, minuty).
+4. Na stránce **Tým** vidí: chipy pro přepnutí sezóny (nahoře), sezónní přehled (zápasy, V-R-P, body,
+   skóre), formu (posledních 5 zápasů), klikací přehled zápasů vybrané sezóny — včetně starších ročníků,
+   ne jen aktuálního — a kompletní kádr se sezónními statistikami každého hráče (zápasy, góly, asistence,
+   karty, minuty).
 5. Kliknutím na konkrétní zápas se dostane na stránku **Zápas**: skóre s poločasem, klíčové statistiky
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), průběh zápasu (góly a karty s minutou
    a jménem hráče), sestavy obou týmů (podle formace a postu) a posledních 5 vzájemných zápasů.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů.
 7. V postranním menu klikne na **Sezóny**: tabulka Chance Ligy (aktuální i minulé ročníky přes chipy
-   nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc přibyla
-   "Historie sezón" — umístění a body týmu v předchozích ročnících.
+   nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc je
+   "Historie sezón" — umístění a body týmu v předchozích ročnících, s odkazem na zápasy dané sezóny.
 
 Sportmonks se volá až po zadání správného PINu (samotné otevření stránky nic nestahuje) — žádná data se
 nenačtou, dokud PIN neprojde, aby cizí návštěvník s odkazem, ale bez PINu, nemohl čerpat tvůj limit.
