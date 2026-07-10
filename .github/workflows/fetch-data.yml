@@ -19,6 +19,7 @@ on:
           - standings
           - topscorers
           - league-seasons
+          - fixture
       id:
         description: "Entity ID, or a name/query for *-search entities"
         required: true

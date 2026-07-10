@@ -46,4 +46,8 @@ ENTITY_ENDPOINTS = {
         "path": "leagues/{id}",
         "include": "seasons",
     },
+    "fixture": {
+        "path": "fixtures/{id}",
+        "include": None,
+    },
 }
