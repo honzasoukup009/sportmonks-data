@@ -167,10 +167,7 @@ function renderPinPage({ error } = {}) {
   `);
 }
 
-async function sportmonksGet(path, token) {
-  const separator = path.includes("?") ? "&" : "?";
-  const url = `${SPORTMONKS_BASE}/${path}${separator}api_token=${encodeURIComponent(token)}`;
-
+async function sportmonksFetchUrl(url) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const response = await fetch(url);
     if (response.status === 429) {
@@ -185,6 +182,40 @@ async function sportmonksGet(path, token) {
   throw new Error("Sportmonks API je teď přetížené, zkus to prosím za chvíli znovu.");
 }
 
+// Single request — for single-resource lookups (team by id, league by id, one
+// fixture) that never paginate.
+async function sportmonksGet(path, token) {
+  const separator = path.includes("?") ? "&" : "?";
+  const url = `${SPORTMONKS_BASE}/${path}${separator}api_token=${encodeURIComponent(token)}`;
+  return sportmonksFetchUrl(url);
+}
+
+// Follows pagination.next_page until has_more is false, same as the Python
+// client's SportmonksClient.get() — Sportmonks defaults to 25 items per page,
+// so anything that can return more than 25 rows (fixtures, standings,
+// topscorers...) silently truncates without this.
+async function sportmonksGetAll(path, token) {
+  const separator = path.includes("?") ? "&" : "?";
+  let url = `${SPORTMONKS_BASE}/${path}${separator}api_token=${encodeURIComponent(token)}`;
+  const results = [];
+
+  while (url) {
+    const payload = await sportmonksFetchUrl(url);
+    const data = payload.data;
+    results.push(...(Array.isArray(data) ? data : data ? [data] : []));
+
+    const pagination = payload.pagination;
+    if (pagination?.has_more && pagination?.next_page) {
+      const nextSeparator = pagination.next_page.includes("?") ? "&" : "?";
+      url = `${pagination.next_page}${nextSeparator}api_token=${encodeURIComponent(token)}`;
+    } else {
+      url = null;
+    }
+  }
+
+  return results;
+}
+
 async function resolveLeague(config, token) {
   if (config.id) {
     const payload = await sportmonksGet(`leagues/${config.id}?include=currentseason`, token);
@@ -196,8 +227,7 @@ async function resolveLeague(config, token) {
 }
 
 async function fetchSeasonTeams(seasonId, token) {
-  const payload = await sportmonksGet(`teams/seasons/${seasonId}`, token);
-  return payload.data || [];
+  return sportmonksGetAll(`teams/seasons/${seasonId}`, token);
 }
 
 async function fetchLeagueGroups(token) {
@@ -227,16 +257,14 @@ async function fetchTeam(teamId, token) {
 
 async function fetchSquad(teamId, token) {
   const include = "player.statistics.details.type;position";
-  const payload = await sportmonksGet(`squads/teams/${teamId}?include=${include}`, token);
-  return payload.data || [];
+  return sportmonksGetAll(`squads/teams/${teamId}?include=${include}`, token);
 }
 
 async function fetchFixtures(teamId, token) {
   const year = new Date().getUTCFullYear();
   const include = "participants;scores;statistics.type;events.type;referees.referee;referees.type";
   const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=${include}`;
-  const payload = await sportmonksGet(path, token);
-  return payload.data || [];
+  return sportmonksGetAll(path, token);
 }
 
 async function fetchFixtureById(fixtureId, token) {
@@ -258,8 +286,7 @@ async function fetchFixtureById(fixtureId, token) {
 }
 
 async function fetchHeadToHead(teamA, teamB, token) {
-  const payload = await sportmonksGet(`fixtures/head-to-head/${teamA}/${teamB}?include=participants;scores;league`, token);
-  return payload.data || [];
+  return sportmonksGetAll(`fixtures/head-to-head/${teamA}/${teamB}?include=participants;scores;league`, token);
 }
 
 async function fetchLeagueSeasons(leagueId, token) {
@@ -268,13 +295,11 @@ async function fetchLeagueSeasons(leagueId, token) {
 }
 
 async function fetchStandings(seasonId, token) {
-  const payload = await sportmonksGet(`standings/seasons/${seasonId}?include=participant;details.type`, token);
-  return payload.data || [];
+  return sportmonksGetAll(`standings/seasons/${seasonId}?include=participant;details.type`, token);
 }
 
 async function fetchTopScorers(seasonId, token) {
-  const payload = await sportmonksGet(`topscorers/seasons/${seasonId}?include=player;participant;type`, token);
-  return payload.data || [];
+  return sportmonksGetAll(`topscorers/seasons/${seasonId}?include=player;participant;type`, token);
 }
 
 // A season's standings response mixes multiple stages (full table + the
