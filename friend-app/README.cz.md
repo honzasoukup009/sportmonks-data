@@ -45,15 +45,19 @@ otevře odkaz v prohlížeči.
    znovu při každé stránce.
 3. Vybere tým z rozbalovacího seznamu (týmy Chance Ligy — české nejvyšší soutěže).
 4. Na stránce **Tým** vidí: chipy pro přepnutí sezóny (nahoře), sezónní přehled (zápasy, V-R-P, body,
-   skóre), formu (posledních 5 zápasů), klikací přehled zápasů vybrané sezóny — včetně starších ročníků,
-   ne jen aktuálního — a kompletní kádr se sezónními statistikami každého hráče (zápasy, góly, asistence,
-   karty, minuty).
+   skóre), **průměry a časování za sezónu** (rohy/karty/fauly/střely na zápas, kolik % zápasů mělo kartu
+   nebo gól do 30. minuty, průměrná minuta první karty — užitečné pro sázky na statistiky, ne jen na
+   výsledek), formu (posledních 5 zápasů), klikací přehled zápasů vybrané sezóny — včetně starších
+   ročníků, ne jen aktuálního — a kompletní kádr se sezónními statistikami každého hráče (zápasy, góly,
+   asistence, karty, minuty).
 5. Kliknutím na konkrétní zápas se dostane na stránku **Zápas**: skóre s poločasem, klíčové statistiky
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), průběh zápasu (góly a karty s minutou
    a jménem hráče), sestavy obou týmů (podle formace a postu, u každého hráče hodnocení, odehrané minuty,
    přihrávky a střely) a posledních 5 vzájemných zápasů.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů; na stránce
-   Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů.
+   Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů. Export zápasů teď navíc obsahuje
+   samostatné sloupce (rohy, žluté/červené karty, fauly, střely, karta/gól do 30. minuty, minuta první
+   karty) — jde si v Excelu spočítat vlastní průměry a filtry místo spoléhání na čísla na stránce.
 7. V postranním menu klikne na **Sezóny**: tabulka Chance Ligy (aktuální i minulé ročníky přes chipy
    nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc je
    "Historie sezón" — umístění a body týmu v předchozích ročnících, s odkazem na zápasy dané sezóny.

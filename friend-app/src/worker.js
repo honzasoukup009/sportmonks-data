@@ -584,6 +584,14 @@ function fixtureRow(fixture, teamId) {
       : fullTime
     : fixture.result_info || "";
 
+  // Discrete numeric columns (on top of the human-readable "stats" summary
+  // string) for anyone who wants to build their own pivot tables/averages in
+  // Excel from the CSV export, rather than just reading pre-baked averages.
+  const allEvents = fixture.events || [];
+  const cardEvents = allEvents.filter((e) => e.type?.name === "Yellowcard" || e.type?.name === "Redcard");
+  const goalEvents = allEvents.filter((e) => e.type?.name === "Goal" || e.type?.name === "Penalty");
+  const firstCardMinute = cardEvents.length ? Math.min(...cardEvents.map((e) => Number(e.minute))) : "";
+
   return {
     id: fixture.id,
     date: (fixture.starting_at || "").slice(0, 10),
@@ -596,6 +604,17 @@ function fixtureRow(fixture, teamId) {
     cards: summarizeCards(fixture, teamNames),
     stats: summarizeStats(fixture, teamId),
     referee: mainReferee(fixture),
+    corners: statValue(fixture, teamId, "Corners") ?? "",
+    yellow: statValue(fixture, teamId, "Yellowcards") ?? "",
+    red: statValue(fixture, teamId, "Redcards") ?? "",
+    fouls: statValue(fixture, teamId, "Fouls") ?? "",
+    shots: statValue(fixture, teamId, "Shots Total") ?? "",
+    shotsOnTarget: statValue(fixture, teamId, "Shots On Target") ?? "",
+    // Card/goal timing is match-wide (both teams), matching how "total cards/
+    // goals by minute X" betting markets are usually framed, not team-only.
+    cardBy30: fullTime ? (cardEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
+    goalBy30: fullTime ? (goalEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
+    firstCardMinute,
   };
 }
 
@@ -632,6 +651,36 @@ function teamSummary(fixturesRaw, teamId) {
     ga += isHome ? a : h;
   }
   return { played, wins, draws, losses, gf, ga, points: wins * 3 + draws };
+}
+
+// Per-game averages + timing tendencies from already-fetched fixtureRows —
+// useful for statistical betting markets (over/under corners/cards, cards by
+// a given minute) rather than just match outcomes.
+function teamAverages(fixtureRows) {
+  const played = fixtureRows.filter((r) => r.played);
+  if (!played.length) return null;
+
+  const n = played.length;
+  const sum = (key) => played.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
+  const avg = (key) => Math.round((sum(key) / n) * 10) / 10;
+  const pct = (key, matchValue) => Math.round((played.filter((r) => r[key] === matchValue).length / n) * 100);
+
+  const firstCardMinutes = played.map((r) => r.firstCardMinute).filter((m) => m !== "" && m !== undefined);
+  const firstCardMinuteAvg = firstCardMinutes.length
+    ? Math.round(firstCardMinutes.reduce((a, b) => a + b, 0) / firstCardMinutes.length)
+    : null;
+
+  return {
+    matches: n,
+    cornersAvg: avg("corners"),
+    cardsAvg: Math.round(((sum("yellow") + sum("red")) / n) * 10) / 10,
+    foulsAvg: avg("fouls"),
+    shotsAvg: avg("shots"),
+    shotsOnTargetAvg: avg("shotsOnTarget"),
+    cardBy30Pct: pct("cardBy30", "Ano"),
+    goalBy30Pct: pct("goalBy30", "Ano"),
+    firstCardMinuteAvg,
+  };
 }
 
 function recentForm(fixturesRaw, teamId, count = 5) {
@@ -708,6 +757,25 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
     { label: "Skóre", value: `${summary.gf}:${summary.ga}` },
   ];
 
+  const averages = teamAverages(fixtureRows);
+  const averageTiles = averages
+    ? [
+        { label: "Rohy/zápas", value: averages.cornersAvg },
+        { label: "Karty/zápas", value: averages.cardsAvg },
+        { label: "Fauly/zápas", value: averages.foulsAvg },
+        { label: "Střely/zápas", value: averages.shotsAvg },
+        { label: "Na branku/zápas", value: averages.shotsOnTargetAvg },
+        { label: "Góly/zápas", value: (summary.gf / (summary.played || 1)).toFixed(1) },
+      ]
+    : [];
+  const timingTiles = averages
+    ? [
+        { label: "Karta do 30.'", value: `${averages.cardBy30Pct} %` },
+        { label: "Gól do 30.'", value: `${averages.goalBy30Pct} %` },
+        { label: "Ø minuta 1. karty", value: averages.firstCardMinuteAvg !== null ? `${averages.firstCardMinuteAvg}'` : "—" },
+      ]
+    : [];
+
   const formStrip = form
     .map(
       (f) => `<div class="form-chip">
@@ -772,6 +840,21 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
       </div>
       ${form.length ? `<div class="form-strip">${formStrip}</div>` : ""}
     </div>
+
+    ${
+      averages
+        ? `<div class="card">
+            <h2>Průměry a časování — ${escapeHtml(selectedSeason?.name || "")}</h2>
+            <div class="tiles">
+              ${averageTiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+            </div>
+            <div class="tiles" style="margin-top:10px;">
+              ${timingTiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+            </div>
+            <p class="hint" style="margin-top:10px;">Rohy/karty/fauly/střely jsou průměr za ${escapeHtml(team.name)}. Časování karty/gólu do 30. minuty počítá s oběma týmy v zápase (odpovídá sázkovým trhům na "do X. minuty").</p>
+          </div>`
+        : ""
+    }
 
     <div class="card">
       <h2>Zápasy</h2>
@@ -1112,8 +1195,16 @@ const CSV_SCHEMAS = {
     filenameSuffix: "kadr",
   },
   fixtures: {
-    header: ["Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí"],
-    toRow: (r) => [r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee],
+    header: [
+      "Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí",
+      "Rohy", "Žluté", "Červené", "Fauly", "Střely", "Střely na branku",
+      "Karta do 30.", "Gól do 30.", "Minuta 1. karty",
+    ],
+    toRow: (r) => [
+      r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee,
+      r.corners, r.yellow, r.red, r.fouls, r.shots, r.shotsOnTarget,
+      r.cardBy30, r.goalBy30, r.firstCardMinute,
+    ],
     filenameSuffix: "zapasy",
   },
   lineups: {
