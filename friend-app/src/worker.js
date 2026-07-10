@@ -260,10 +260,9 @@ async function fetchSquad(teamId, token) {
   return sportmonksGetAll(`squads/teams/${teamId}?include=${include}`, token);
 }
 
-async function fetchFixtures(teamId, token) {
-  const year = new Date().getUTCFullYear();
+async function fetchFixtures(teamId, startDate, endDate, token) {
   const include = "participants;scores;statistics.type;events.type;referees.referee;referees.type";
-  const path = `fixtures/between/${year}-01-01/${year}-12-31/${teamId}?include=${include}`;
+  const path = `fixtures/between/${startDate}/${endDate}/${teamId}?include=${include}`;
   return sportmonksGetAll(path, token);
 }
 
@@ -643,7 +642,7 @@ function renderMatchCard(row) {
   const label = row.played ? row.score.split(" ")[0] : "—";
   const status = row.played ? "Konec" : row.date;
   return `
-    <a class="match-card" href="/match/${row.id}?team=${row.__teamId}">
+    <a class="match-card" href="/match/${row.id}?team=${row.__teamId}${row.__seasonId ? `&season=${row.__seasonId}` : ""}">
       <div class="meta"><span>${escapeHtml(row.date)}</span><span>${row.venue ? escapeHtml(row.venue) : ""}</span></div>
       <div class="row">
         <span class="mono" style="font-size:13px;">${escapeHtml(row.opponent)}</span>
@@ -654,7 +653,7 @@ function renderMatchCard(row) {
   `;
 }
 
-function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
+function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason) {
   const summary = teamSummary(fixturesRaw, team.id);
   const form = recentForm(fixturesRaw, team.id);
   const tiles = [
@@ -677,7 +676,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
   const matchCards = fixtureRows
     .slice()
     .sort((a, b) => (a.date < b.date ? 1 : -1))
-    .map((r) => renderMatchCard({ ...r, __teamId: team.id }))
+    .map((r) => renderMatchCard({ ...r, __teamId: team.id, __seasonId: selectedSeason?.id }))
     .join("");
 
   const squadGroups = groupByPosition(squad, (row) => row.position);
@@ -717,8 +716,12 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
       </div>
     </div>
 
+    <div class="chip-row" style="margin-top:20px;">
+      ${seasons.map((s) => `<a class="chip ${selectedSeason && s.id === selectedSeason.id ? "active" : ""}" href="/team/${team.id}?season=${s.id}">${escapeHtml(s.name)}</a>`).join("")}
+    </div>
+
     <div class="card">
-      <h2>Sezóna ${new Date().getUTCFullYear()}</h2>
+      <h2>Sezóna ${escapeHtml(selectedSeason?.name || "")}</h2>
       <div class="tiles">
         ${tiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
       </div>
@@ -727,7 +730,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
 
     <div class="card">
       <h2>Zápasy</h2>
-      ${fixtureRows.length ? `<div class="match-list">${matchCards}</div>` : `<p class="hint">Pro tento tým letos nejsou žádné zápasy v evidenci.</p>`}
+      ${fixtureRows.length ? `<div class="match-list">${matchCards}</div>` : `<p class="hint">Pro tuto sezónu nejsou žádné zápasy v evidenci.</p>`}
     </div>
 
     <div class="card">
@@ -743,7 +746,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
 
     <div class="card">
       <h2>Zápasy — export</h2>
-      <p class="hint">Detaily jednotlivých zápasů (góly, karty, statistiky) najdeš po kliknutí na zápas výše. Kompletní přehled letošních zápasů si můžeš stáhnout i jako tabulku.</p>
+      <p class="hint">Detaily jednotlivých zápasů (góly, karty, statistiky) najdeš po kliknutí na zápas výše. Kompletní přehled zápasů vybrané sezóny si můžeš stáhnout i jako tabulku.</p>
       <form class="plain" method="POST" action="/download.csv">
         <input type="hidden" name="kind" value="fixtures">
         <input type="hidden" name="team" value="${escapeHtml(team.name)}">
@@ -762,7 +765,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history) {
                 ${history
                   .map(
                     (h) => `<tr>
-                      <td class="mono">${escapeHtml(h.season)}</td>
+                      <td class="mono"><a href="/team/${team.id}?season=${h.seasonId}">${escapeHtml(h.season)}</a></td>
                       <td class="mono" style="color:${h.position === 1 ? "var(--gold)" : "var(--text)"};font-weight:700;">${escapeHtml(h.position)}.</td>
                       <td class="mono">${escapeHtml(h.points)}</td>
                       <td class="mono">${escapeHtml(h.gf)}:${escapeHtml(h.ga)}</td>
@@ -959,7 +962,7 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers) {
   return shell("league", body);
 }
 
-function renderMatchPage(fixture, teamId, h2h) {
+function renderMatchPage(fixture, teamId, h2h, seasonId) {
   const participants = fixture.participants || [];
   const home = participants.find((p) => p.meta?.location === "home");
   const away = participants.find((p) => p.meta?.location === "away");
@@ -1018,7 +1021,7 @@ function renderMatchPage(fixture, teamId, h2h) {
       ${renderH2H(h2h, teamId)}
     </div>
 
-    <a class="btn secondary" href="/team/${teamId}" style="margin-top:20px;">Zpět na tým</a>
+    <a class="btn secondary" href="/team/${teamId}${seasonId ? `?season=${seasonId}` : ""}" style="margin-top:20px;">Zpět na tým</a>
   `;
   return shell("team", body);
 }
@@ -1074,16 +1077,38 @@ async function handleDownload(request) {
 
 // ============================== Route handlers ==============================
 
-async function fetchTeamSeasonHistory(teamId, leagueId, token) {
-  const seasons = await fetchLeagueSeasons(leagueId, token);
-  const finished = seasons.filter((s) => s.finished).sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
+// Seasons worth offering a chip for (skip anything neither finished nor
+// currently running), most recent first.
+function displayableSeasons(seasons) {
+  return seasons
+    .filter((s) => s.finished || s.is_current)
+    .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
+}
+
+// Default to the most recently finished season rather than "is_current" —
+// Sportmonks flags next season as current as soon as it's scheduled, weeks
+// before a ball is kicked, which would otherwise default to an empty season.
+function pickSeason(seasons, seasonId) {
+  return seasonId ? seasons.find((s) => s.id === seasonId) : seasons.find((s) => s.finished) || seasons[0];
+}
+
+async function teamSeasonHistory(teamId, finishedSeasons, token) {
   const history = [];
-  for (const season of finished) {
+  for (const season of finishedSeasons) {
     try {
       const standings = await fetchStandings(season.id, token);
       const table = mainTableStage(standings).map(standingRow);
       const row = table.find((r) => r.teamId === teamId);
-      if (row) history.push({ season: season.name, position: row.position, points: row.points, gf: row.gf, ga: row.ga });
+      if (row) {
+        history.push({
+          seasonId: season.id,
+          season: season.name,
+          position: row.position,
+          points: row.points,
+          gf: row.gf,
+          ga: row.ga,
+        });
+      }
     } catch {
       // Skip a season whose standings failed to resolve.
     }
@@ -1091,17 +1116,26 @@ async function fetchTeamSeasonHistory(teamId, leagueId, token) {
   return history;
 }
 
-async function handleTeamPage(teamId, env) {
+async function handleTeamPage(teamId, seasonId, env) {
   try {
-    const team = await fetchTeam(teamId, env.SPORTMONKS_API_TOKEN);
-    const fixturesRaw = await fetchFixtures(teamId, env.SPORTMONKS_API_TOKEN);
-    const squadData = await fetchSquad(teamId, env.SPORTMONKS_API_TOKEN);
-    const history = await fetchTeamSeasonHistory(teamId, LEAGUES[0].id, env.SPORTMONKS_API_TOKEN).catch(() => []);
+    const token = env.SPORTMONKS_API_TOKEN;
+    const team = await fetchTeam(teamId, token);
+    const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
+    const seasonOptions = displayableSeasons(seasons);
+    const selectedSeason = pickSeason(seasonOptions, seasonId);
+
+    const fixturesRaw = selectedSeason
+      ? await fetchFixtures(teamId, selectedSeason.starting_at.slice(0, 10), selectedSeason.ending_at.slice(0, 10), token)
+      : [];
+    const squadData = await fetchSquad(teamId, token);
+    const history = await teamSeasonHistory(teamId, seasonOptions.filter((s) => s.finished), token).catch(() => []);
 
     const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
     const squad = squadData.map(squadRow);
 
-    return htmlResponse(renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history));
+    return htmlResponse(
+      renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history, seasonOptions, selectedSeason)
+    );
   } catch (err) {
     return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
   }
@@ -1110,10 +1144,8 @@ async function handleTeamPage(teamId, env) {
 async function handleSeasonPage(seasonId, env) {
   const token = env.SPORTMONKS_API_TOKEN;
   const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
-  const displayable = seasons
-    .filter((s) => s.finished || s.is_current)
-    .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
-  const selected = seasonId ? displayable.find((s) => s.id === seasonId) : displayable.find((s) => s.finished) || displayable[0];
+  const displayable = displayableSeasons(seasons);
+  const selected = pickSeason(displayable, seasonId);
 
   if (!selected) {
     return htmlResponse(renderSeasonPage([], { id: 0, name: "Sezóny" }, [], []));
@@ -1129,7 +1161,7 @@ async function handleSeasonPage(seasonId, env) {
   return htmlResponse(renderSeasonPage(displayable, selected, table, topScorers));
 }
 
-async function handleMatchPage(fixtureId, teamId, env) {
+async function handleMatchPage(fixtureId, teamId, seasonId, env) {
   try {
     const fixture = await fetchFixtureById(fixtureId, env.SPORTMONKS_API_TOKEN);
     if (!fixture) throw new Error("Zápas se nepodařilo najít.");
@@ -1143,7 +1175,7 @@ async function handleMatchPage(fixtureId, teamId, env) {
       h2h = all.filter((f) => f.id !== fixture.id).sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
     }
 
-    return htmlResponse(renderMatchPage(fixture, teamId, h2h));
+    return htmlResponse(renderMatchPage(fixture, teamId, h2h, seasonId));
   } catch (err) {
     return redirectTo(`/team/${teamId}`);
   }
@@ -1189,14 +1221,16 @@ export default {
     const teamMatch = path.match(/^\/team\/(\d+)$/);
     if (teamMatch && request.method === "GET") {
       if (!isAuthed(request, env)) return redirectTo("/");
-      return handleTeamPage(Number(teamMatch[1]), env);
+      const seasonId = url.searchParams.get("season");
+      return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, env);
     }
 
     const matchMatch = path.match(/^\/match\/(\d+)$/);
     if (matchMatch && request.method === "GET") {
       if (!isAuthed(request, env)) return redirectTo("/");
       const teamId = Number(url.searchParams.get("team"));
-      return handleMatchPage(Number(matchMatch[1]), teamId, env);
+      const seasonId = url.searchParams.get("season");
+      return handleMatchPage(Number(matchMatch[1]), teamId, seasonId ? Number(seasonId) : null, env);
     }
 
     const seasonMatch = path.match(/^\/league(?:\/(\d+))?$/);
