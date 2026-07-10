@@ -29,4 +29,9 @@ ENTITY_ENDPOINTS = {
         "path": "fixtures/between/{start}/{end}/{id}",
         "include": "participants;scores;statistics.type;events.type;referees.referee;referees.type",
     },
+    "head-to-head": {
+        # --id = team1, --start = team2 (reusing existing CLI args for a one-off spike)
+        "path": "fixtures/head-to-head/{id}/{start}",
+        "include": "participants;scores",
+    },
 }
