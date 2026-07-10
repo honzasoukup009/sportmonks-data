@@ -429,6 +429,39 @@ async function handleDownload(request) {
   });
 }
 
+// Temporary diagnostic route: finds Czechia's country id, then lists every
+// league Sportmonks has for it (id, name, sub_type, category) so we can pick
+// the right top-flight league deliberately instead of guessing a name.
+// Remove once the league id is confirmed and hardcoded in LEAGUES.
+async function handleDebug(request, env) {
+  const url = new URL(request.url);
+  if (url.searchParams.get("pin") !== env.ACCESS_PIN) {
+    return new Response("Neplatný PIN.", { status: 403 });
+  }
+  try {
+    const countryPayload = await sportmonksGet("countries/search/Czech", env.SPORTMONKS_API_TOKEN);
+    const countries = countryPayload.data || [];
+    const results = [];
+    for (const country of countries) {
+      const leaguesPayload = await sportmonksGet(`leagues/countries/${country.id}`, env.SPORTMONKS_API_TOKEN);
+      results.push({
+        country: { id: country.id, name: country.name },
+        leagues: (leaguesPayload.data || []).map((l) => ({
+          id: l.id,
+          name: l.name,
+          sub_type: l.sub_type,
+          category: l.category,
+        })),
+      });
+    }
+    return new Response(JSON.stringify(results, null, 2), {
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  } catch (err) {
+    return new Response(`Chyba: ${err.message}`, { status: 500 });
+  }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -442,6 +475,9 @@ export default {
     }
     if (url.pathname === "/download.csv" && request.method === "POST") {
       return handleDownload(request);
+    }
+    if (url.pathname === "/debug" && request.method === "GET") {
+      return handleDebug(request, env);
     }
     return new Response("Not found", { status: 404 });
   },
