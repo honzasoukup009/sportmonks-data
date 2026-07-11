@@ -261,7 +261,8 @@ async function fetchSquad(teamId, token) {
 }
 
 async function fetchFixtures(teamId, startDate, endDate, token) {
-  const include = "participants;scores;statistics.type;events.type;referees.referee;referees.type";
+  const include =
+    "participants;scores;statistics.type;events.type;referees.referee;referees.type;periods.statistics.type";
   const path = `fixtures/between/${startDate}/${endDate}/${teamId}?include=${include}`;
   return sportmonksGetAll(path, token);
 }
@@ -280,6 +281,7 @@ async function fetchFixtureById(fixtureId, token) {
     "lineups.details.type",
     "formations",
     "league",
+    "periods.statistics.type",
   ].join(";");
   const payload = await sportmonksGet(`fixtures/${fixtureId}?include=${include}`, token);
   return payload.data || null;
@@ -471,7 +473,28 @@ const STAT_LABELS = {
   Fouls: "Fauly",
   "Shots Total": "Střely",
   "Shots On Target": "Střely na branku",
+  Offsides: "Ofsajdy",
 };
+
+// The six types the user asked to see split by half. Corners/Fouls/Offsides
+// aren't tracked as individually-timed events (only Goals/Cards are), so a
+// half split for those is only possible via Sportmonks' own period-scoped
+// statistics — confirmed live via fixtures/{id}?include=periods.statistics.type.
+const HALF_STAT_TYPES = {
+  Yellowcards: "Žluté karty",
+  Redcards: "Červené karty",
+  Corners: "Rohy",
+  Fouls: "Fauly",
+  "Shots On Target": "Střely na branku",
+  Offsides: "Ofsajdy",
+};
+
+function periodStatValue(fixture, periodDescription, teamId, typeName) {
+  const period = (fixture.periods || []).find((p) => p.description === periodDescription);
+  if (!period) return null;
+  const entry = (period.statistics || []).find((s) => s.participant_id === teamId && s.type?.name === typeName);
+  return entry?.data?.value ?? null;
+}
 
 function statValue(fixture, teamId, typeName) {
   const stats = fixture.statistics || [];
@@ -610,11 +633,25 @@ function fixtureRow(fixture, teamId) {
     fouls: statValue(fixture, teamId, "Fouls") ?? "",
     shots: statValue(fixture, teamId, "Shots Total") ?? "",
     shotsOnTarget: statValue(fixture, teamId, "Shots On Target") ?? "",
+    offsides: statValue(fixture, teamId, "Offsides") ?? "",
     // Card/goal timing is match-wide (both teams), matching how "total cards/
     // goals by minute X" betting markets are usually framed, not team-only.
     cardBy30: fullTime ? (cardEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
     goalBy30: fullTime ? (goalEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
     firstCardMinute,
+    // Per-half split (own team), from Sportmonks' period-scoped statistics.
+    cornersH1: periodStatValue(fixture, "1st-half", teamId, "Corners") ?? "",
+    cornersH2: periodStatValue(fixture, "2nd-half", teamId, "Corners") ?? "",
+    yellowH1: periodStatValue(fixture, "1st-half", teamId, "Yellowcards") ?? "",
+    yellowH2: periodStatValue(fixture, "2nd-half", teamId, "Yellowcards") ?? "",
+    redH1: periodStatValue(fixture, "1st-half", teamId, "Redcards") ?? "",
+    redH2: periodStatValue(fixture, "2nd-half", teamId, "Redcards") ?? "",
+    foulsH1: periodStatValue(fixture, "1st-half", teamId, "Fouls") ?? "",
+    foulsH2: periodStatValue(fixture, "2nd-half", teamId, "Fouls") ?? "",
+    shotsOnTargetH1: periodStatValue(fixture, "1st-half", teamId, "Shots On Target") ?? "",
+    shotsOnTargetH2: periodStatValue(fixture, "2nd-half", teamId, "Shots On Target") ?? "",
+    offsidesH1: periodStatValue(fixture, "1st-half", teamId, "Offsides") ?? "",
+    offsidesH2: periodStatValue(fixture, "2nd-half", teamId, "Offsides") ?? "",
   };
 }
 
@@ -927,6 +964,41 @@ function statBarRow(fixture, homeId, awayId, typeName, label) {
   `;
 }
 
+function renderHalfStatsTable(fixture, home, away) {
+  const rows = Object.entries(HALF_STAT_TYPES)
+    .map(([typeName, label]) => {
+      const h1h = periodStatValue(fixture, "1st-half", home?.id, typeName);
+      const h1a = periodStatValue(fixture, "1st-half", away?.id, typeName);
+      const h2h = periodStatValue(fixture, "2nd-half", home?.id, typeName);
+      const h2a = periodStatValue(fixture, "2nd-half", away?.id, typeName);
+      if (h1h === null && h1a === null && h2h === null && h2a === null) return "";
+      return `<tr>
+        <td>${escapeHtml(label)}</td>
+        <td class="mono">${escapeHtml(h1h ?? "-")}</td>
+        <td class="mono">${escapeHtml(h1a ?? "-")}</td>
+        <td class="mono">${escapeHtml(h2h ?? "-")}</td>
+        <td class="mono">${escapeHtml(h2a ?? "-")}</td>
+      </tr>`;
+    })
+    .join("");
+
+  if (!rows) return `<p class="hint">Pro tento zápas nejsou poločasové statistiky evidované.</p>`;
+
+  const homeCode = escapeHtml(badgeCode(home));
+  const awayCode = escapeHtml(badgeCode(away));
+  return `
+    <div class="overflow-x">
+      <table>
+        <thead>
+          <tr><th></th><th colspan="2">1. poločas</th><th colspan="2">2. poločas</th></tr>
+          <tr><th>Statistika</th><th>${homeCode}</th><th>${awayCode}</th><th>${homeCode}</th><th>${awayCode}</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 const EVENT_STYLE = {
   Goal: { label: "GÓL", color: "var(--accent)" },
   Penalty: { label: "PEN", color: "var(--accent)" },
@@ -1147,6 +1219,11 @@ function renderMatchPage(fixture, teamId, h2h, seasonId) {
           </div>
 
           <div class="card">
+            <h2>Statistiky podle poločasu</h2>
+            ${renderHalfStatsTable(fixture, home, away)}
+          </div>
+
+          <div class="card">
             <h2>Průběh zápasu</h2>
             ${renderTimeline(fixture, home?.id)}
           </div>
@@ -1197,13 +1274,17 @@ const CSV_SCHEMAS = {
   fixtures: {
     header: [
       "Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí",
-      "Rohy", "Žluté", "Červené", "Fauly", "Střely", "Střely na branku",
+      "Rohy", "Žluté", "Červené", "Fauly", "Střely", "Střely na branku", "Ofsajdy",
       "Karta do 30.", "Gól do 30.", "Minuta 1. karty",
+      "Rohy 1.PL", "Rohy 2.PL", "Žluté 1.PL", "Žluté 2.PL", "Červené 1.PL", "Červené 2.PL",
+      "Fauly 1.PL", "Fauly 2.PL", "Na branku 1.PL", "Na branku 2.PL", "Ofsajdy 1.PL", "Ofsajdy 2.PL",
     ],
     toRow: (r) => [
       r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee,
-      r.corners, r.yellow, r.red, r.fouls, r.shots, r.shotsOnTarget,
+      r.corners, r.yellow, r.red, r.fouls, r.shots, r.shotsOnTarget, r.offsides,
       r.cardBy30, r.goalBy30, r.firstCardMinute,
+      r.cornersH1, r.cornersH2, r.yellowH1, r.yellowH2, r.redH1, r.redH2,
+      r.foulsH1, r.foulsH2, r.shotsOnTargetH1, r.shotsOnTargetH2, r.offsidesH1, r.offsidesH2,
     ],
     filenameSuffix: "zapasy",
   },
