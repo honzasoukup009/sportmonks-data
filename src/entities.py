@@ -52,7 +52,9 @@ ENTITY_ENDPOINTS = {
     },
     "my-leagues": {
         # --id is unused for this entity (no path param) but the CLI requires one.
-        "path": "my/leagues",
+        # Lives under the Core API root (v3/my/...), not v3/football, unlike everything else here.
+        "path": "leagues",
         "include": "country",
+        "base_url": "https://api.sportmonks.com/v3/my",
     },
 }

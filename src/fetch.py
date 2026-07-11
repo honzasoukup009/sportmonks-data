@@ -73,7 +73,8 @@ def main(argv: list[str] | None = None) -> int:
     path = config["path"].format(id=args.id, start=start, end=end)
     include = args.include or config["include"]
 
-    client = SportmonksClient()
+    client_kwargs = {"base_url": config["base_url"]} if "base_url" in config else {}
+    client = SportmonksClient(**client_kwargs)
     records = client.get(path, include=include)
 
     if not records:
