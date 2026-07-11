@@ -1,9 +1,15 @@
 const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 
-// Leagues offered in the dropdown. Chance Liga (262, country_id 245)
-// confirmed live via /leagues/search/Chance%20Liga, cross-checked against
-// Sparta Praha's country_id through teams/search.
-const LEAGUES = [{ id: 262, label: "Chance Liga" }];
+// Leagues offered in the dropdown, one <select> per league on the team picker.
+// IDs confirmed live via /leagues/search/{name} + a leagues/{id}?include=seasons
+// data-access check against the actual subscription (Starter/Advanced plan).
+const LEAGUES = [
+  { id: 262, label: "Chance Liga" },
+  { id: 8, label: "Premier League" },
+  { id: 82, label: "Bundesliga" },
+  { id: 384, label: "Serie A" },
+  { id: 564, label: "La Liga" },
+];
 
 const PAGE_STYLE = `
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -92,7 +98,7 @@ function shell(activeNav, body) {
       <aside class="sidebar">
         <div>
           <div class="brand-name"><a href="/team">LIGASTAT</a></div>
-          <div class="brand-sub">Chance Liga · Analytika</div>
+          <div class="brand-sub">Fotbalová analytika</div>
         </div>
         <nav class="nav">
           <a class="navlink ${activeNav === "team" ? "active" : ""}" href="/team">Tým</a>
@@ -229,23 +235,26 @@ async function fetchSeasonTeams(seasonId, token) {
 }
 
 async function fetchLeagueGroups(token) {
-  const groups = [];
-  for (const config of LEAGUES) {
-    try {
-      const league = await resolveLeague(config, token);
-      const seasonId = league?.currentseason?.id;
-      if (!seasonId) continue;
-      const teams = await fetchSeasonTeams(seasonId, token);
-      if (!teams.length) continue;
-      groups.push({
-        label: config.label,
-        teams: teams.map((t) => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name)),
-      });
-    } catch {
-      // Skip a league that failed to resolve rather than failing the whole page.
-    }
-  }
-  return groups;
+  const groups = await Promise.all(
+    LEAGUES.map(async (config) => {
+      try {
+        const league = await resolveLeague(config, token);
+        const seasonId = league?.currentseason?.id;
+        if (!seasonId) return null;
+        const teams = await fetchSeasonTeams(seasonId, token);
+        if (!teams.length) return null;
+        return {
+          id: config.id,
+          label: config.label,
+          teams: teams.map((t) => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name)),
+        };
+      } catch {
+        // Skip a league that failed to resolve rather than failing the whole page.
+        return null;
+      }
+    })
+  );
+  return groups.filter(Boolean);
 }
 
 async function fetchTeam(teamId, token) {
@@ -776,35 +785,38 @@ function thresholdLines(lambda) {
 // ============================== Views ==============================
 
 function renderTeamPicker({ leagueGroups, error } = {}) {
-  const hasTeams = leagueGroups && leagueGroups.some((g) => g.teams.length > 0);
-  const options = (leagueGroups || [])
+  const groups = (leagueGroups || []).filter((g) => g.teams.length > 0);
+
+  const pickerCards = groups
     .map(
-      (group) => `<optgroup label="${escapeHtml(group.label)}">
-        ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
-      </optgroup>`
+      (group) => `
+        <div class="card">
+          <h2>${escapeHtml(group.label)}</h2>
+          <form class="plain" method="POST" action="/team">
+            <input type="hidden" name="league_id" value="${group.id}">
+            <select name="team_id" required>
+              <option value="">-- vyber tým --</option>
+              ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
+            </select>
+            <button type="submit">Zobrazit</button>
+          </form>
+        </div>`
     )
     .join("");
 
   const body = `
     <h1>Vyber tým</h1>
     <p class="lead">Zobrazíš profil týmu, letošní zápasy a statistiky.</p>
-    <div class="card">
-      ${
-        hasTeams
-          ? `<form class="plain" method="POST" action="/team">
-              <label for="team_id">Tým</label>
-              <select id="team_id" name="team_id" required>
-                <option value="">-- vyber tým --</option>
-                ${options}
-              </select>
-              <button type="submit">Zobrazit</button>
-            </form>`
-          : `<form class="plain" method="GET" action="/team">
+    ${
+      groups.length
+        ? pickerCards
+        : `<div class="card">
+            <form class="plain" method="GET" action="/team">
               <button type="submit">Zkusit znovu načíst seznam týmů</button>
-            </form>`
-      }
-      ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
-    </div>
+            </form>
+          </div>`
+    }
+    ${error ? `<p class="error">${escapeHtml(error)}</p>` : ""}
   `;
   return shell("team", body);
 }
@@ -824,7 +836,7 @@ function renderMatchCard(row) {
   `;
 }
 
-function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason) {
+function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason, leagueId) {
   const summary = teamSummary(fixturesRaw, team.id);
   const tiles = [
     { label: "Zápasy", value: summary.played },
@@ -896,7 +908,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
     </div>
 
     <div class="chip-row" style="margin-top:20px;">
-      ${seasons.map((s) => `<a class="chip ${selectedSeason && s.id === selectedSeason.id ? "active" : ""}" href="/team/${team.id}?season=${s.id}">${escapeHtml(s.name)}</a>`).join("")}
+      ${seasons.map((s) => `<a class="chip ${selectedSeason && s.id === selectedSeason.id ? "active" : ""}" href="/team/${team.id}?season=${s.id}&league=${leagueId}">${escapeHtml(s.name)}</a>`).join("")}
     </div>
 
     <div class="card">
@@ -958,7 +970,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
                 ${history
                   .map(
                     (h) => `<tr>
-                      <td class="mono"><a href="/team/${team.id}?season=${h.seasonId}">${escapeHtml(h.season)}</a></td>
+                      <td class="mono"><a href="/team/${team.id}?season=${h.seasonId}&league=${leagueId}">${escapeHtml(h.season)}</a></td>
                       <td class="mono" style="color:${h.position === 1 ? "var(--gold)" : "var(--text)"};font-weight:700;">${escapeHtml(h.position)}.</td>
                       <td class="mono">${escapeHtml(h.points)}</td>
                       <td class="mono">${escapeHtml(h.gf)}:${escapeHtml(h.ga)}</td>
@@ -1369,7 +1381,12 @@ function renderMatchPage(fixture, teamId, h2h, seasonId, prediction) {
       ${renderH2H(h2h, teamId)}
     </div>
 
-    <a class="btn secondary" href="/team/${teamId}${seasonId ? `?season=${seasonId}` : ""}" style="margin-top:20px;">Zpět na tým</a>
+    ${(() => {
+      const backParams = [seasonId ? `season=${seasonId}` : "", fixture.league?.id ? `league=${fixture.league.id}` : ""]
+        .filter(Boolean)
+        .join("&");
+      return `<a class="btn secondary" href="/team/${teamId}${backParams ? `?${backParams}` : ""}" style="margin-top:20px;">Zpět na tým</a>`;
+    })()}
   `;
   return shell("team", body);
 }
@@ -1493,11 +1510,11 @@ async function teamSeasonHistory(teamId, finishedSeasons, token) {
   return history;
 }
 
-async function handleTeamPage(teamId, seasonId, env) {
+async function handleTeamPage(teamId, seasonId, leagueId, env) {
   try {
     const token = env.SPORTMONKS_API_TOKEN;
     const team = await fetchTeam(teamId, token);
-    const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
+    const seasons = await fetchLeagueSeasons(leagueId, token);
     const seasonOptions = displayableSeasons(seasons);
     const selectedSeason = pickSeason(seasonOptions, seasonId);
 
@@ -1511,7 +1528,7 @@ async function handleTeamPage(teamId, seasonId, env) {
     const squad = squadData.map(squadRow);
 
     return htmlResponse(
-      renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history, seasonOptions, selectedSeason)
+      renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history, seasonOptions, selectedSeason, leagueId)
     );
   } catch (err) {
     return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
@@ -1581,9 +1598,10 @@ async function handleMatchPage(fixtureId, teamId, seasonId, env) {
     // for a finished match we already show what actually happened.
     let prediction = null;
     const alreadyPlayed = !!scoreAt(fixture.scores || [], "CURRENT");
-    if (!alreadyPlayed && home && away) {
+    const leagueId = fixture.league?.id;
+    if (!alreadyPlayed && home && away && leagueId) {
       try {
-        const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
+        const seasons = await fetchLeagueSeasons(leagueId, token);
         const range = finishedSeasonsRange(seasons);
         if (range) {
           const [homeAvg, awayAvg] = await Promise.all([
@@ -1639,14 +1657,16 @@ export default {
         const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
         return htmlResponse(renderTeamPicker({ leagueGroups, error: "Vyber prosím tým ze seznamu." }));
       }
-      return redirectTo(`/team/${teamId}`);
+      const leagueId = Number(form.get("league_id")) || LEAGUES[0].id;
+      return redirectTo(`/team/${teamId}?league=${leagueId}`);
     }
 
     const teamMatch = path.match(/^\/team\/(\d+)$/);
     if (teamMatch && request.method === "GET") {
       if (!isAuthed(request, env)) return redirectTo("/");
       const seasonId = url.searchParams.get("season");
-      return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, env);
+      const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
+      return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, leagueId, env);
     }
 
     const matchMatch = path.match(/^\/match\/(\d+)$/);
