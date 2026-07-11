@@ -667,10 +667,12 @@ function fixtureRow(fixture, teamId) {
     shots: statValue(fixture, teamId, "Shots Total") ?? "",
     shotsOnTarget: statValue(fixture, teamId, "Shots On Target") ?? "",
     offsides: statValue(fixture, teamId, "Offsides") ?? "",
-    // Card/goal timing is match-wide (both teams), matching how "total cards/
-    // goals by minute X" betting markets are usually framed, not team-only.
-    cardBy30: fullTime ? (cardEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
-    goalBy30: fullTime ? (goalEvents.some((e) => Number(e.minute) <= 30) ? "Ano" : "Ne") : "",
+    // Card/goal timing is match-wide (both teams), matching how "in the 1st
+    // half" betting markets are usually framed, not team-only. First-half
+    // events never carry minute > 45 (stoppage time uses extra_minute
+    // instead), so this cleanly covers the whole half including stoppage.
+    cardFirstHalf: fullTime ? (cardEvents.some((e) => Number(e.minute) <= 45) ? "Ano" : "Ne") : "",
+    goalFirstHalf: fullTime ? (goalEvents.some((e) => Number(e.minute) <= 45) ? "Ano" : "Ne") : "",
     firstCardMinute,
     // Per-half split (own team), from Sportmonks' period-scoped statistics.
     cornersH1: periodStatValue(fixture, "1st-half", teamId, "Corners") ?? "",
@@ -749,8 +751,8 @@ function teamAverages(fixtureRows) {
     shotsAvg: avg("shots"),
     shotsOnTargetAvg: avg("shotsOnTarget"),
     shotsOnTargetSum: sum("shotsOnTarget"),
-    cardBy30Pct: pct("cardBy30", "Ano"),
-    goalBy30Pct: pct("goalBy30", "Ano"),
+    cardFirstHalfPct: pct("cardFirstHalf", "Ano"),
+    goalFirstHalfPct: pct("goalFirstHalf", "Ano"),
     firstCardMinuteAvg,
   };
 }
@@ -944,8 +946,8 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
     : [];
   const timingTiles = averages
     ? [
-        { label: "Karta do 30.'", value: `${averages.cardBy30Pct} %` },
-        { label: "Gól do 30.'", value: `${averages.goalBy30Pct} %` },
+        { label: "Karta v 1. poločase", value: `${averages.cardFirstHalfPct} %` },
+        { label: "Gól v 1. poločase", value: `${averages.goalFirstHalfPct} %` },
         { label: "Ø minuta 1. karty", value: averages.firstCardMinuteAvg !== null ? `${averages.firstCardMinuteAvg}'` : "—" },
       ]
     : [];
@@ -1014,7 +1016,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
             <div class="tiles" style="margin-top:10px;">
               ${timingTiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
             </div>
-            <p class="hint" style="margin-top:10px;">Rohy/karty/fauly/střely jsou průměr za ${escapeHtml(team.name)}. Časování karty/gólu do 30. minuty počítá s oběma týmy v zápase (odpovídá sázkovým trhům na "do X. minuty").</p>
+            <p class="hint" style="margin-top:10px;">Rohy/karty/fauly/střely jsou průměr za ${escapeHtml(team.name)}. Karta/gól v 1. poločase počítá s oběma týmy v zápase (odpovídá sázkovým trhům na poločasové markety).</p>
           </div>`
         : ""
     }
@@ -1368,9 +1370,9 @@ function renderMatchPrediction(prediction, home, away) {
 
   if (!rows) return "";
 
-  const cardBy30 =
-    homeAvg.cardBy30Pct !== undefined && awayAvg.cardBy30Pct !== undefined
-      ? Math.round((homeAvg.cardBy30Pct + awayAvg.cardBy30Pct) / 2)
+  const cardFirstHalf =
+    homeAvg.cardFirstHalfPct !== undefined && awayAvg.cardFirstHalfPct !== undefined
+      ? Math.round((homeAvg.cardFirstHalfPct + awayAvg.cardFirstHalfPct) / 2)
       : null;
 
   return `
@@ -1391,13 +1393,13 @@ function renderMatchPrediction(prediction, home, away) {
       </div>
 
       ${
-        cardBy30 !== null
-          ? `<div style="font-weight:600;font-size:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">Jiná otázka: padne karta brzy?</div>
+        cardFirstHalf !== null
+          ? `<div style="font-weight:600;font-size:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">Jiná otázka: padne karta v 1. poločase?</div>
             <p class="hint" style="margin-top:6px;">Tohle nesouvisí s počtem karet v tabulce výše (ten je za celý zápas) — jde jen o to, jestli padne
-              <strong>alespoň jedna</strong> karta (kterýkoliv tým) už v prvních 30 minutách: v zápasech obou týmů v průměru
-              <span class="mono" style="font-weight:600;color:var(--text);">${cardBy30} %</span>
-              (${escapeHtml(home?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${homeAvg.cardBy30Pct} %</span>,
-              ${escapeHtml(away?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${awayAvg.cardBy30Pct} %</span>).</p>`
+              <strong>alespoň jedna</strong> karta (kterýkoliv tým) už v prvním poločase: v zápasech obou týmů v průměru
+              <span class="mono" style="font-weight:600;color:var(--text);">${cardFirstHalf} %</span>
+              (${escapeHtml(home?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${homeAvg.cardFirstHalfPct} %</span>,
+              ${escapeHtml(away?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${awayAvg.cardFirstHalfPct} %</span>).</p>`
           : ""
       }
     </div>
@@ -1510,14 +1512,14 @@ const CSV_SCHEMAS = {
     header: [
       "Datum", "Soupeř", "Doma/Venku", "Výsledek", "Góly", "Karty", "Statistiky", "Rozhodčí",
       "Rohy", "Žluté", "Červené", "Fauly", "Střely", "Střely na branku", "Ofsajdy",
-      "Karta do 30.", "Gól do 30.", "Minuta 1. karty",
+      "Karta v 1. poločase", "Gól v 1. poločase", "Minuta 1. karty",
       "Rohy 1.PL", "Rohy 2.PL", "Žluté 1.PL", "Žluté 2.PL", "Červené 1.PL", "Červené 2.PL",
       "Fauly 1.PL", "Fauly 2.PL", "Na branku 1.PL", "Na branku 2.PL", "Ofsajdy 1.PL", "Ofsajdy 2.PL",
     ],
     toRow: (r) => [
       r.date, r.opponent, r.venue, r.score, r.goals, r.cards, r.stats, r.referee,
       r.corners, r.yellow, r.red, r.fouls, r.shots, r.shotsOnTarget, r.offsides,
-      r.cardBy30, r.goalBy30, r.firstCardMinute,
+      r.cardFirstHalf, r.goalFirstHalf, r.firstCardMinute,
       r.cornersH1, r.cornersH2, r.yellowH1, r.yellowH2, r.redH1, r.redH2,
       r.foulsH1, r.foulsH2, r.shotsOnTargetH1, r.shotsOnTargetH2, r.offsidesH1, r.offsidesH2,
     ],

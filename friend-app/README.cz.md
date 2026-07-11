@@ -46,7 +46,7 @@ otevře odkaz v prohlížeči.
 3. Vybere tým z rozbalovacího seznamu (týmy Chance Ligy — české nejvyšší soutěže).
 4. Na stránce **Tým** vidí: chipy pro přepnutí sezóny (nahoře), sezónní přehled (zápasy, V-R-P, body,
    skóre), **průměry a časování za sezónu** (rohy/karty/fauly/střely na zápas, kolik % zápasů mělo kartu
-   nebo gól do 30. minuty, průměrná minuta první karty — užitečné pro sázky na statistiky, ne jen na
+   nebo gól v 1. poločase, průměrná minuta první karty — užitečné pro sázky na statistiky, ne jen na
    výsledek), formu (posledních 5 zápasů), klikací přehled zápasů vybrané sezóny — včetně starších
    ročníků, ne jen aktuálního — a kompletní kádr se sezónními statistikami každého hráče (zápasy, góly,
    asistence, karty, minuty).
@@ -57,14 +57,14 @@ otevře odkaz v prohlížeči.
    postu (hodnocení, minuty, přihrávky, střely/na branku, fauly, centry, asistence, zákroky u brankářů),
    posledních 5 vzájemných zápasů a — u zápasů, které se ještě neodehrály — **odhad pro tento zápas**:
    očekávaný počet rohů/karet/faulů/střel na branku (součet sezónních průměrů obou týmů) a pravděpodobnost
-   překročení tří hranic kolem tohoto průměru, plus průměrná šance na kartu do 30. minuty. Je to jednoduchý
+   překročení tří hranic kolem tohoto průměru, plus průměrná šance na kartu v 1. poločase. Je to jednoduchý
    statistický odhad (Poissonovo rozdělení), ne skutečná predikce ani kurz — orientační vodítko.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů; na stránce
    Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů — export sestav obsahuje ještě víc
    detailů než web (klíčové přihrávky, vytvořené/zahozené šance, vynucené fauly, penalty, skluzy, vyhrané
    souboje, zákroky v pokutovém území), protože v Excelu prostor pro sloupce navíc není problém. Export
-   zápasů obsahuje samostatné sloupce (rohy, žluté/červené karty, fauly, střely, ofsajdy, karta/gól do
-   30. minuty, minuta první karty, a totéž zvlášť za 1. a 2. poločas) — jde si v Excelu spočítat vlastní
+   zápasů obsahuje samostatné sloupce (rohy, žluté/červené karty, fauly, střely, ofsajdy, karta/gól v
+   1. poločase, minuta první karty, a totéž zvlášť za 1. a 2. poločas) — jde si v Excelu spočítat vlastní
    průměry a filtry místo spoléhání na čísla na stránce.
 7. V postranním menu klikne na **Sezóny**: tabulka Chance Ligy (aktuální i minulé ročníky přes chipy
    nahoře), banner vedoucího týmu a přehled 10 nejlepších střelců sezóny. Na stránce Tým navíc je
