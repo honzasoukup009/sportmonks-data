@@ -916,7 +916,7 @@ function renderMatchCard(row) {
     <a class="match-card" href="/match/${row.id}?team=${row.__teamId}${row.__seasonId ? `&season=${row.__seasonId}` : ""}">
       ${badge}
       <div class="mono" style="font-size:11px;">${escapeHtml(row.opponent)}</div>
-      <div class="mono" style="font-weight:600;">${escapeHtml(label)}</div>
+      <div class="mono" style="font-weight:600;color:var(--text);">${escapeHtml(label)}</div>
       <div class="hint" style="font-size:10px;">${escapeHtml(row.date)}</div>
     </a>
   `;
@@ -1395,9 +1395,9 @@ function renderMatchPrediction(prediction, home, away) {
           ? `<div style="font-weight:600;font-size:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">Jiná otázka: padne karta brzy?</div>
             <p class="hint" style="margin-top:6px;">Tohle nesouvisí s počtem karet v tabulce výše (ten je za celý zápas) — jde jen o to, jestli padne
               <strong>alespoň jedna</strong> karta (kterýkoliv tým) už v prvních 30 minutách: v zápasech obou týmů v průměru
-              <span class="mono" style="font-weight:600;">${cardBy30} %</span>
-              (${escapeHtml(home?.name || "")} <span class="mono" style="font-weight:600;">${homeAvg.cardBy30Pct} %</span>,
-              ${escapeHtml(away?.name || "")} <span class="mono" style="font-weight:600;">${awayAvg.cardBy30Pct} %</span>).</p>`
+              <span class="mono" style="font-weight:600;color:var(--text);">${cardBy30} %</span>
+              (${escapeHtml(home?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${homeAvg.cardBy30Pct} %</span>,
+              ${escapeHtml(away?.name || "")} <span class="mono" style="font-weight:600;color:var(--text);">${awayAvg.cardBy30Pct} %</span>).</p>`
           : ""
       }
     </div>
