@@ -512,15 +512,30 @@ function summarizeStats(fixture, teamId) {
   return parts.join(", ");
 }
 
-// Small, deliberately narrow set of per-player match stats (confirmed live
-// via lineups.details.type — Sportmonks offers dozens more, e.g. tackles,
-// duels, crosses, but a full box score per player is too much for a lineup
-// list of 20+ names).
+// Per-player match stats confirmed live via lineups.details.type. Sportmonks
+// offers dozens more (backward passes, possession lost, error-lead-to-shot...)
+// that read as advanced analytics rather than anything a bettor would look
+// at — this is the subset relevant to player prop betting markets (goals
+// scorers/shots, cards/fouls, assists/creativity, goalkeeper saves).
 const PLAYER_MATCH_STAT_TYPES = {
   Rating: "rating",
   "Minutes Played": "minutes",
   Passes: "passes",
   "Shots Total": "shots",
+  "Shots On Target": "shotsOnTarget",
+  Fouls: "fouls",
+  "Total Crosses": "crosses",
+  Assists: "assists",
+  Saves: "saves",
+  "Key Passes": "keyPasses",
+  "Big Chances Created": "bigChancesCreated",
+  "Big Chances Missed": "bigChancesMissed",
+  "Saves Insidebox": "savesInsidebox",
+  Tackles: "tackles",
+  "Duels Won": "duelsWon",
+  "Fouls Drawn": "foulsDrawn",
+  "Penalties Committed": "penaltiesCommitted",
+  "Penalties Won": "penaltiesWon",
 };
 
 function playerMatchStats(entry) {
@@ -532,12 +547,20 @@ function playerMatchStats(entry) {
   return out;
 }
 
+// Shown inline next to a name in the lineup. Kept to the most bet-relevant
+// subset — everything in PLAYER_MATCH_STAT_TYPES (including this) is still
+// available in the CSV export via lineupRow.
 function formatPlayerStatLine(stats) {
   const parts = [];
   if (stats.rating !== undefined) parts.push(`hodn. ${stats.rating}`);
   if (stats.minutes !== undefined) parts.push(`${stats.minutes}'`);
   if (stats.passes !== undefined) parts.push(`${stats.passes} přihr.`);
   if (stats.shots !== undefined) parts.push(`${stats.shots} stř.`);
+  if (stats.shotsOnTarget !== undefined) parts.push(`${stats.shotsOnTarget} na branku`);
+  if (stats.fouls !== undefined) parts.push(`${stats.fouls} f.`);
+  if (stats.crosses !== undefined) parts.push(`${stats.crosses} centrů`);
+  if (stats.assists !== undefined) parts.push(`${stats.assists} as.`);
+  if (stats.saves !== undefined) parts.push(`${stats.saves} zákr.`);
   return parts.join(" · ");
 }
 
@@ -553,6 +576,20 @@ function lineupRow(entry, teamName) {
     minutes: stats.minutes ?? "",
     passes: stats.passes ?? "",
     shots: stats.shots ?? "",
+    shotsOnTarget: stats.shotsOnTarget ?? "",
+    fouls: stats.fouls ?? "",
+    crosses: stats.crosses ?? "",
+    assists: stats.assists ?? "",
+    saves: stats.saves ?? "",
+    keyPasses: stats.keyPasses ?? "",
+    bigChancesCreated: stats.bigChancesCreated ?? "",
+    bigChancesMissed: stats.bigChancesMissed ?? "",
+    savesInsidebox: stats.savesInsidebox ?? "",
+    tackles: stats.tackles ?? "",
+    duelsWon: stats.duelsWon ?? "",
+    foulsDrawn: stats.foulsDrawn ?? "",
+    penaltiesCommitted: stats.penaltiesCommitted ?? "",
+    penaltiesWon: stats.penaltiesWon ?? "",
   };
 }
 
@@ -1289,8 +1326,20 @@ const CSV_SCHEMAS = {
     filenameSuffix: "zapasy",
   },
   lineups: {
-    header: ["Tým", "Číslo", "Jméno", "Pozice", "Role", "Hodnocení", "Minuty", "Přihrávky", "Střely"],
-    toRow: (r) => [r.team, r.number, r.name, r.position, r.role, r.rating, r.minutes, r.passes, r.shots],
+    header: [
+      "Tým", "Číslo", "Jméno", "Pozice", "Role",
+      "Hodnocení", "Minuty", "Přihrávky", "Klíčové přihrávky", "Střely", "Střely na branku",
+      "Centry", "Vytvořené šance", "Zahozené šance",
+      "Fauly", "Vynucené fauly", "Zaviněné penalty", "Vynucené penalty",
+      "Skluzy", "Vyhrané souboje", "Asistence", "Zákroky", "Zákroky v pokutovém",
+    ],
+    toRow: (r) => [
+      r.team, r.number, r.name, r.position, r.role,
+      r.rating, r.minutes, r.passes, r.keyPasses, r.shots, r.shotsOnTarget,
+      r.crosses, r.bigChancesCreated, r.bigChancesMissed,
+      r.fouls, r.foulsDrawn, r.penaltiesCommitted, r.penaltiesWon,
+      r.tackles, r.duelsWon, r.assists, r.saves, r.savesInsidebox,
+    ],
     filenameSuffix: "sestavy",
   },
 };
