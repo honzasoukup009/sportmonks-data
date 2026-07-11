@@ -1255,7 +1255,7 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers) {
 
 const MATCH_PREDICTION_MARKETS = [
   { label: "Rohy", avgKey: "cornersAvg" },
-  { label: "Karty", avgKey: "cardsAvg" },
+  { label: "Karty", avgKey: "cardsAvg", title: "Žluté i červené karty dohromady" },
   { label: "Fauly", avgKey: "foulsAvg" },
   { label: "Střely na branku", avgKey: "shotsOnTargetAvg" },
 ];
@@ -1264,7 +1264,7 @@ function renderMatchPrediction(prediction, home, away) {
   if (!prediction) return "";
   const { rangeLabel, homeAvg, awayAvg } = prediction;
 
-  const rows = MATCH_PREDICTION_MARKETS.map(({ label, avgKey }) => {
+  const rows = MATCH_PREDICTION_MARKETS.map(({ label, avgKey, title }) => {
     const lambda = (Number(homeAvg[avgKey]) || 0) + (Number(awayAvg[avgKey]) || 0);
     if (!lambda) return "";
     const lineCells = thresholdLines(lambda)
@@ -1273,7 +1273,10 @@ function renderMatchPrediction(prediction, home, away) {
         return `<td class="mono">nad ${escapeHtml(line)}: ${pct} %</td>`;
       })
       .join("");
-    return `<tr><td>${escapeHtml(label)}</td><td class="mono">${lambda.toFixed(1)}</td>${lineCells}</tr>`;
+    const labelCell = title
+      ? `<td title="${escapeHtml(title)}">${escapeHtml(label)}</td>`
+      : `<td>${escapeHtml(label)}</td>`;
+    return `<tr>${labelCell}<td class="mono">${lambda.toFixed(1)}</td>${lineCells}</tr>`;
   }).join("");
 
   if (!rows) return "";
