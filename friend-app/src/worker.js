@@ -1293,15 +1293,19 @@ function renderMatchPrediction(prediction, home, away) {
         (${escapeHtml(home?.name || "")}: ${escapeHtml(homeAvg.matches)} zápasů, ${escapeHtml(away?.name || "")}:
         ${escapeHtml(awayAvg.matches)} zápasů). Jednoduchý statistický odhad (Poissonovo rozdělení z průměrů) —
         orientační vodítko, ne skutečná predikce ani kurz.</p>
+
+      <div style="font-weight:600;font-size:14px;margin-top:16px;">Za celý zápas (0–90+ minut)</div>
       <div class="overflow-x">
         <table>
           <thead><tr><th>Statistika</th><th title="Očekávaná hodnota — součet průměrů obou týmů">Ø</th><th colspan="3">Pravděpodobnost, že padne...</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>
+
       ${
         cardBy30 !== null
-          ? `<p class="hint" style="margin-top:10px;">Karta do 30. minuty: v zápasech obou týmů v průměru ${cardBy30} % (${home?.name || ""} ${homeAvg.cardBy30Pct} %, ${away?.name || ""} ${awayAvg.cardBy30Pct} %).</p>`
+          ? `<div style="font-weight:600;font-size:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">Časování — do 30. minuty</div>
+            <p class="hint" style="margin-top:6px;">Karta do 30. minuty (kterýkoliv tým): v zápasech obou týmů v průměru ${cardBy30} % (${home?.name || ""} ${homeAvg.cardBy30Pct} %, ${away?.name || ""} ${awayAvg.cardBy30Pct} %).</p>`
           : ""
       }
     </div>
