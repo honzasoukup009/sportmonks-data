@@ -40,7 +40,7 @@ const PAGE_STYLE = `
   .card h2 { font-size: 17px; margin-bottom: 14px; }
   form.plain { margin: 0; }
   label { display: block; font-weight: 600; margin: 1rem 0 .3rem; font-size: 14px; }
-  input[type=text], input[type=password], select { width: 100%; box-sizing: border-box; padding: .6rem; font-size: 1.05rem; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface2); color: var(--text); }
+  input[type=text], input[type=password], input[type=number], select { width: 100%; box-sizing: border-box; padding: .6rem; font-size: 1.05rem; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface2); color: var(--text); }
   button, .btn { display: inline-block; margin-top: 1.2rem; padding: .7rem 1.2rem; font-size: 1rem; font-weight: 600; color: #fff; background: var(--accent); border: none; border-radius: 8px; cursor: pointer; text-align: center; }
   button.secondary, .btn.secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border-strong); }
   .error { color: var(--danger); font-weight: 600; }
@@ -924,7 +924,91 @@ function renderMatchCard(row) {
   `;
 }
 
-function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason, leagueId) {
+function renderRecentMatchesSection(teamId, leagueId, selectedSeasonId, recent, recentCount, recentVenue) {
+  const venueLabel = recentVenue === "home" ? " (jen domácí zápasy)" : recentVenue === "away" ? " (jen venkovní zápasy)" : "";
+
+  let results = "";
+  if (recent) {
+    const wins = recent.matches.filter((r) => r.result === "V").length;
+    const draws = recent.matches.filter((r) => r.result === "R").length;
+    const losses = recent.matches.filter((r) => r.result === "P").length;
+    const averages = recent.averages;
+
+    const summaryTiles = [
+      { label: "Zápasy", value: recent.matches.length },
+      { label: "V-R-P", value: `${wins}-${draws}-${losses}` },
+    ];
+    const averageTiles = averages
+      ? [
+          { label: "Rohy/zápas", value: averages.cornersAvg },
+          { label: "Karty/zápas", value: averages.cardsAvg },
+          { label: "Fauly/zápas", value: averages.foulsAvg },
+          { label: "Střely/zápas", value: averages.shotsAvg },
+          { label: "Na branku/zápas", value: averages.shotsOnTargetAvg },
+        ]
+      : [];
+    const timingTiles = averages
+      ? [
+          { label: "Karta v 1. poločase", value: `${averages.cardFirstHalfPct} %` },
+          { label: "Gól v 1. poločase", value: `${averages.goalFirstHalfPct} %` },
+          { label: "Ø minuta 1. karty", value: averages.firstCardMinuteAvg !== null ? `${averages.firstCardMinuteAvg}'` : "—" },
+        ]
+      : [];
+
+    const matchCards = recent.matches.map((r) => renderMatchCard({ ...r, __teamId: teamId })).join("");
+
+    const note =
+      recent.matches.length < recentCount
+        ? `K dispozici${venueLabel} je jen ${recent.available} zápasů napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}) — zobrazeny všechny.`
+        : `Zobrazeno posledních ${recent.matches.length} zápasů${venueLabel} napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}).`;
+
+    results = `
+      <p class="hint" style="margin-top:12px;">${note}</p>
+      ${
+        recent.matches.length
+          ? `<div class="tiles" style="margin-top:12px;">${renderTiles(summaryTiles)}</div>
+            ${
+              averages
+                ? `<div class="tiles" style="margin-top:10px;">${renderTiles(averageTiles)}</div>
+                  <div class="tiles" style="margin-top:10px;">${renderTiles(timingTiles)}</div>`
+                : ""
+            }
+            <div class="match-list" style="margin-top:16px;">${matchCards}</div>`
+          : `<p class="hint">Žádné odehrané zápasy${venueLabel} nejsou k dispozici.</p>`
+      }
+    `;
+  }
+
+  return `
+    <div class="card">
+      <h2>Posledních N zápasů</h2>
+      <p class="hint">Nezávisí na vybrané sezóně výše — spojí obě dostupné sezóny do jednoho okna a vezme z něj zadaný
+        počet nejnovějších odehraných zápasů. Jde omezit jen na domácí, nebo jen na venkovní zápasy.</p>
+      <form class="plain" method="GET" action="/team/${teamId}">
+        <input type="hidden" name="league" value="${leagueId}">
+        ${selectedSeasonId ? `<input type="hidden" name="season" value="${selectedSeasonId}">` : ""}
+        <label for="recent_count">Počet zápasů</label>
+        <input type="number" id="recent_count" name="count" min="1" max="500" value="${recentCount ?? ""}" required>
+        <label for="recent_venue" title="Omezí výběr jen na domácí, nebo jen na venkovní zápasy">Hřiště</label>
+        <select id="recent_venue" name="venue">
+          <option value=""${!recentVenue ? " selected" : ""}>Vše (doma i venku)</option>
+          <option value="home"${recentVenue === "home" ? " selected" : ""}>Jen doma</option>
+          <option value="away"${recentVenue === "away" ? " selected" : ""}>Jen venku</option>
+        </select>
+        <button type="submit">Zobrazit</button>
+      </form>
+      ${results}
+    </div>
+  `;
+}
+
+function renderTiles(tiles) {
+  return tiles
+    .map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`)
+    .join("");
+}
+
+function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason, leagueId, recent, recentCount, recentVenue) {
   const summary = teamSummary(fixturesRaw, team.id);
   const tiles = [
     { label: "Zápasy", value: summary.played },
@@ -1002,7 +1086,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
     <div class="card">
       <h2>Sezóna ${escapeHtml(selectedSeason?.name || "")}</h2>
       <div class="tiles">
-        ${tiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+        ${renderTiles(tiles)}
       </div>
     </div>
 
@@ -1011,10 +1095,10 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
         ? `<div class="card">
             <h2>Průměry a časování — ${escapeHtml(selectedSeason?.name || "")}</h2>
             <div class="tiles">
-              ${averageTiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+              ${renderTiles(averageTiles)}
             </div>
             <div class="tiles" style="margin-top:10px;">
-              ${timingTiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
+              ${renderTiles(timingTiles)}
             </div>
             <p class="hint" style="margin-top:10px;">Rohy/karty/fauly/střely jsou průměr za ${escapeHtml(team.name)}. Karta/gól v 1. poločase počítá s oběma týmy v zápase (odpovídá sázkovým trhům na poločasové markety).</p>
           </div>`
@@ -1025,6 +1109,8 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
       <h2>Zápasy</h2>
       ${fixtureRows.length ? `<div class="match-list">${matchCards}</div>` : `<p class="hint">Pro tuto sezónu nejsou žádné zápasy v evidenci.</p>`}
     </div>
+
+    ${renderRecentMatchesSection(team.id, leagueId, selectedSeason?.id, recent, recentCount, recentVenue)}
 
     <div class="card">
       <h2>Kádr</h2>
@@ -1614,7 +1700,30 @@ async function teamSeasonHistory(teamId, finishedSeasons, token) {
   return history;
 }
 
-async function handleTeamPage(teamId, seasonId, leagueId, env) {
+// "Last N matches" window (optionally home/away only), pooled across every
+// finished season regardless of the season chip selected above — reuses the
+// same finishedSeasonsRange + fetchFixtures pooling as the match prediction,
+// just fetched on demand instead of on every team-page load.
+async function fetchRecentMatches(teamId, seasons, count, venue, token) {
+  const range = finishedSeasonsRange(seasons);
+  if (!range) return null;
+
+  const fixturesRaw = await fetchFixtures(teamId, range.start, range.end, token);
+  const rows = fixturesRaw
+    .map((f) => fixtureRow(f, teamId))
+    .filter((r) => r.played)
+    .filter((r) => !venue || (venue === "home" ? r.venue === "Doma" : r.venue === "Venku"))
+    .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  return {
+    available: rows.length,
+    matches: rows.slice(0, count),
+    averages: teamAverages(rows.slice(0, count)),
+    rangeLabel: range.label,
+  };
+}
+
+async function handleTeamPage(teamId, seasonId, leagueId, env, recentCount, recentVenue) {
   try {
     const token = env.SPORTMONKS_API_TOKEN;
     const team = await fetchTeam(teamId, token);
@@ -1627,12 +1736,27 @@ async function handleTeamPage(teamId, seasonId, leagueId, env) {
       : [];
     const squadData = await fetchSquad(teamId, token);
     const history = await teamSeasonHistory(teamId, seasonOptions.filter((s) => s.finished), token).catch(() => []);
+    const recent = recentCount
+      ? await fetchRecentMatches(teamId, seasons, recentCount, recentVenue, token).catch(() => null)
+      : null;
 
     const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
     const squad = squadData.map(squadRow);
 
     return htmlResponse(
-      renderTeamPage(team || { id: teamId, name: "Tým" }, fixturesRaw, fixtureRows, squad, history, seasonOptions, selectedSeason, leagueId)
+      renderTeamPage(
+        team || { id: teamId, name: "Tým" },
+        fixturesRaw,
+        fixtureRows,
+        squad,
+        history,
+        seasonOptions,
+        selectedSeason,
+        leagueId,
+        recent,
+        recentCount,
+        recentVenue
+      )
     );
   } catch (err) {
     return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
@@ -1770,7 +1894,11 @@ export default {
       if (!isAuthed(request, env)) return redirectTo("/");
       const seasonId = url.searchParams.get("season");
       const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
-      return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, leagueId, env);
+      const countRaw = Number(url.searchParams.get("count"));
+      const recentCount = countRaw > 0 ? Math.min(Math.floor(countRaw), 500) : null;
+      const venueRaw = url.searchParams.get("venue");
+      const recentVenue = venueRaw === "home" || venueRaw === "away" ? venueRaw : null;
+      return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, leagueId, env, recentCount, recentVenue);
     }
 
     const matchMatch = path.match(/^\/match\/(\d+)$/);
