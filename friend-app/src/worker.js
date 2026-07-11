@@ -1262,7 +1262,7 @@ const MATCH_PREDICTION_MARKETS = [
 
 function renderMatchPrediction(prediction, home, away) {
   if (!prediction) return "";
-  const { referenceSeason, homeAvg, awayAvg } = prediction;
+  const { rangeLabel, homeAvg, awayAvg } = prediction;
 
   const rows = MATCH_PREDICTION_MARKETS.map(({ label, avgKey }) => {
     const lambda = (Number(homeAvg[avgKey]) || 0) + (Number(awayAvg[avgKey]) || 0);
@@ -1286,9 +1286,10 @@ function renderMatchPrediction(prediction, home, away) {
   return `
     <div class="card">
       <h2>Odhad pro tento zápas</h2>
-      <p class="hint">Založeno na průměrech obou týmů ze sezóny ${escapeHtml(referenceSeason?.name || "")}
-        (${escapeHtml(home?.name || "")} + ${escapeHtml(away?.name || "")}). Jednoduchý statistický odhad
-        (Poissonovo rozdělení ze sezónních průměrů) — orientační vodítko, ne skutečná predikce ani kurz.</p>
+      <p class="hint">Založeno na průměrech obou týmů za sezóny ${escapeHtml(rangeLabel || "")}
+        (${escapeHtml(home?.name || "")}: ${escapeHtml(homeAvg.matches)} zápasů, ${escapeHtml(away?.name || "")}:
+        ${escapeHtml(awayAvg.matches)} zápasů). Jednoduchý statistický odhad (Poissonovo rozdělení z průměrů) —
+        orientační vodítko, ne skutečná predikce ani kurz.</p>
       <div class="overflow-x">
         <table>
           <thead><tr><th>Statistika</th><th title="Očekávaná hodnota — součet průměrů obou týmů">Ø</th><th colspan="3">Pravděpodobnost, že padne...</th></tr></thead>
@@ -1552,9 +1553,26 @@ async function handleSeasonPage(seasonId, env) {
   return htmlResponse(renderSeasonPage(displayable, selected, table, topScorers));
 }
 
-async function fetchTeamAveragesForSeason(teamId, season, token) {
-  if (!season) return null;
-  const fixturesRaw = await fetchFixtures(teamId, season.starting_at.slice(0, 10), season.ending_at.slice(0, 10), token);
+// Span across every *finished* season (currently 2024/25 + 2025/26) rather
+// than just the latest one, so averages are computed from ~60-70 matches
+// instead of ~30-35 — more stable, at the cost of including a squad that may
+// have since changed via transfers. fixtures/between/{start}/{end}/{team}
+// only returns matches that actually happened in the window, so spanning the
+// gap between seasons (May to July) is harmless.
+function finishedSeasonsRange(seasons) {
+  const finished = seasons.filter((s) => s.finished).sort((a, b) => (a.starting_at < b.starting_at ? -1 : 1));
+  if (!finished.length) return null;
+  const label =
+    finished.length > 1 ? `${finished[0].name}–${finished[finished.length - 1].name}` : finished[0].name;
+  return {
+    start: finished[0].starting_at.slice(0, 10),
+    end: finished[finished.length - 1].ending_at.slice(0, 10),
+    label,
+  };
+}
+
+async function fetchTeamAveragesForRange(teamId, start, end, token) {
+  const fixturesRaw = await fetchFixtures(teamId, start, end, token);
   const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
   return teamAverages(fixtureRows);
 }
@@ -1581,13 +1599,15 @@ async function handleMatchPage(fixtureId, teamId, seasonId, env) {
     if (!alreadyPlayed && home && away) {
       try {
         const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
-        const referenceSeason = pickSeason(displayableSeasons(seasons), null);
-        const [homeAvg, awayAvg] = await Promise.all([
-          fetchTeamAveragesForSeason(home.id, referenceSeason, token),
-          fetchTeamAveragesForSeason(away.id, referenceSeason, token),
-        ]);
-        if (homeAvg && awayAvg) {
-          prediction = { referenceSeason, homeAvg, awayAvg };
+        const range = finishedSeasonsRange(seasons);
+        if (range) {
+          const [homeAvg, awayAvg] = await Promise.all([
+            fetchTeamAveragesForRange(home.id, range.start, range.end, token),
+            fetchTeamAveragesForRange(away.id, range.start, range.end, token),
+          ]);
+          if (homeAvg && awayAvg) {
+            prediction = { rangeLabel: range.label, homeAvg, awayAvg };
+          }
         }
       } catch {
         // No prediction rather than a broken page if the underlying data fails.
