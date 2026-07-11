@@ -53,8 +53,8 @@ otevře odkaz v prohlížeči.
 5. Kliknutím na konkrétní zápas se dostane na stránku **Zápas**: skóre s poločasem, klíčové statistiky
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), **statistiky podle poločasu** (žluté/
    červené karty, rohy, fauly, střely na branku, ofsajdy — zvlášť za 1. a 2. poločas, oba týmy), průběh
-   zápasu (góly a karty s minutou a jménem hráče), sestavy obou týmů (podle formace a postu, u každého
-   hráče hodnocení, minuty, přihrávky, střely/na branku, fauly, centry, asistence a zákroky u brankářů)
+   zápasu (góly a karty s minutou a jménem hráče), sestavy obou týmů — pod sebou, každá jako tabulka podle
+   postu (hodnocení, minuty, přihrávky, střely/na branku, fauly, centry, asistence, zákroky u brankářů) —
    a posledních 5 vzájemných zápasů.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů; na stránce
    Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů — export sestav obsahuje ještě víc

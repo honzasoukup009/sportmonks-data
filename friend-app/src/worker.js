@@ -70,7 +70,7 @@ const PAGE_STYLE = `
   .timeline-row .home-side { text-align: right; }
   .timeline-row .away-side { text-align: left; }
   .ev-tag { font-weight: 700; font-size: 10px; margin: 0 5px; }
-  .lineup-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .lineup-cols { display: flex; flex-direction: column; gap: 24px; }
   .overflow-x { overflow-x: auto; }
   .chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; }
   .chip { flex-shrink: 0; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--border-strong); background: var(--surface2); color: var(--text-dim); font-weight: 600; font-size: 13px; }
@@ -547,22 +547,6 @@ function playerMatchStats(entry) {
   return out;
 }
 
-// Shown inline next to a name in the lineup. Kept to the most bet-relevant
-// subset — everything in PLAYER_MATCH_STAT_TYPES (including this) is still
-// available in the CSV export via lineupRow.
-function formatPlayerStatLine(stats) {
-  const parts = [];
-  if (stats.rating !== undefined) parts.push(`hodn. ${stats.rating}`);
-  if (stats.minutes !== undefined) parts.push(`${stats.minutes}'`);
-  if (stats.passes !== undefined) parts.push(`${stats.passes} přihr.`);
-  if (stats.shots !== undefined) parts.push(`${stats.shots} stř.`);
-  if (stats.shotsOnTarget !== undefined) parts.push(`${stats.shotsOnTarget} na branku`);
-  if (stats.fouls !== undefined) parts.push(`${stats.fouls} f.`);
-  if (stats.crosses !== undefined) parts.push(`${stats.crosses} centrů`);
-  if (stats.assists !== undefined) parts.push(`${stats.assists} as.`);
-  if (stats.saves !== undefined) parts.push(`${stats.saves} zákr.`);
-  return parts.join(" · ");
-}
 
 function lineupRow(entry, teamName) {
   const stats = playerMatchStats(entry);
@@ -1067,6 +1051,18 @@ function renderTimeline(fixture, homeId) {
     .join("");
 }
 
+const LINEUP_TABLE_COLUMNS = [
+  { key: "rating", label: "Hod" },
+  { key: "minutes", label: "Min" },
+  { key: "passes", label: "Přih" },
+  { key: "shots", label: "Stř" },
+  { key: "shotsOnTarget", label: "NaBr" },
+  { key: "fouls", label: "F" },
+  { key: "crosses", label: "Cen" },
+  { key: "assists", label: "As" },
+  { key: "saves", label: "Zákr" },
+];
+
 function renderLineupColumn(fixture, teamId, teamName) {
   const lineups = (fixture.lineups || []).filter((l) => l.team_id === teamId);
   const starters = lineups.filter((l) => l.type?.name === "Lineup");
@@ -1074,12 +1070,10 @@ function renderLineupColumn(fixture, teamId, teamName) {
   const formation = (fixture.formations || []).find((f) => f.participant_id === teamId)?.formation || "";
 
   const groups = groupByPosition(
-    starters.map((l) => ({
-      jersey: l.jersey_number,
-      name: l.player_name,
-      position: l.position?.name,
-      statLine: formatPlayerStatLine(playerMatchStats(l)),
-    })),
+    starters.map((l) => {
+      const stats = playerMatchStats(l);
+      return { jersey: l.jersey_number, name: l.player_name, position: l.position?.name, stats };
+    }),
     (row) => row.position
   );
 
@@ -1087,14 +1081,27 @@ function renderLineupColumn(fixture, teamId, teamName) {
     .map(
       (g) => `
         <div class="group-label" style="color:${g.color};background:${g.bg};">${escapeHtml(g.label)}</div>
-        ${g.players
-          .map(
-            (p) => `<div style="display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0;">
-              <span style="display:flex;gap:8px;"><span class="mono" style="color:var(--text-faint);width:20px;">${escapeHtml(p.jersey)}</span><span>${escapeHtml(p.name)}</span></span>
-              <span class="mono hint">${escapeHtml(p.statLine)}</span>
-            </div>`
-          )
-          .join("")}
+        <div class="overflow-x">
+          <table>
+            <thead>
+              <tr>
+                <th>Č.</th><th>Hráč</th>
+                ${LINEUP_TABLE_COLUMNS.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${g.players
+                .map(
+                  (p) => `<tr>
+                    <td class="mono">${escapeHtml(p.jersey)}</td>
+                    <td>${escapeHtml(p.name)}</td>
+                    ${LINEUP_TABLE_COLUMNS.map((c) => `<td class="mono">${escapeHtml(p.stats[c.key] ?? "-")}</td>`).join("")}
+                  </tr>`
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
       `
     )
     .join("");
