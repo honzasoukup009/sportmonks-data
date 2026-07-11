@@ -46,14 +46,11 @@ const PAGE_STYLE = `
   .tile { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
   .tile-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; }
   .tile-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 600; margin-top: 4px; }
-  .form-strip { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
-  .form-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; background: var(--surface2); border-radius: 10px; font-size: 11px; }
   .result-badge { width: 24px; height: 24px; border-radius: 50%; color: #0A0D12; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; }
   .group-label { display: inline-block; padding: 2px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 6px; }
-  .match-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; }
-  .match-card { flex-shrink: 0; min-width: 190px; padding: 12px 14px; border-radius: 12px; background: var(--surface2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
-  .match-card .meta { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-faint); }
-  .match-card .row { display: flex; align-items: center; justify-content: space-between; }
+  .match-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .match-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; text-decoration: none; color: inherit; }
+  .match-card:hover { border-color: var(--border-strong); }
   .score-header { display: flex; align-items: center; justify-content: center; gap: 40px; padding: 12px 0; }
   .score-side { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 150px; }
   .score-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -644,6 +641,7 @@ function fixtureRow(fixture, teamId) {
     venue,
     score,
     played: !!fullTime,
+    result: classifyResult(fixture, teamId),
     goals: summarizeGoals(fixture, teamNames),
     cards: summarizeCards(fixture, teamNames),
     stats: summarizeStats(fixture, teamId),
@@ -774,19 +772,6 @@ function thresholdLines(lambda) {
   return [base - 1, base, base + 1].filter((line) => line > 0);
 }
 
-function recentForm(fixturesRaw, teamId, count = 5) {
-  return fixturesRaw
-    .filter((f) => classifyResult(f, teamId))
-    .slice()
-    .sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1))
-    .slice(0, count)
-    .map((f) => {
-      const result = classifyResult(f, teamId);
-      const opponent = (f.participants || []).find((p) => p.id !== teamId);
-      return { result, opponent: opponent?.name || "", score: scoreAt(f.scores || [], "CURRENT") };
-    });
-}
-
 // ============================== Views ==============================
 
 function renderTeamPicker({ leagueGroups, error } = {}) {
@@ -825,22 +810,21 @@ function renderTeamPicker({ leagueGroups, error } = {}) {
 
 function renderMatchCard(row) {
   const label = row.played ? row.score.split(" ")[0] : "—";
-  const status = row.played ? "Konec" : row.date;
+  const badge = row.result
+    ? `<div class="result-badge" style="background:${RESULT_COLOR[row.result]};">${row.result}</div>`
+    : `<div class="result-badge" style="background:var(--surface3);color:var(--text-dim);">–</div>`;
   return `
     <a class="match-card" href="/match/${row.id}?team=${row.__teamId}${row.__seasonId ? `&season=${row.__seasonId}` : ""}">
-      <div class="meta"><span>${escapeHtml(row.date)}</span><span>${row.venue ? escapeHtml(row.venue) : ""}</span></div>
-      <div class="row">
-        <span class="mono" style="font-size:13px;">${escapeHtml(row.opponent)}</span>
-        <span class="mono" style="font-weight:600;">${escapeHtml(label)}</span>
-      </div>
-      <div class="hint" style="text-align:right;">${escapeHtml(status)}</div>
+      ${badge}
+      <div class="mono" style="font-size:11px;">${escapeHtml(row.opponent)}</div>
+      <div class="mono" style="font-weight:600;">${escapeHtml(label)}</div>
+      <div class="hint" style="font-size:10px;">${escapeHtml(row.date)}</div>
     </a>
   `;
 }
 
 function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons, selectedSeason) {
   const summary = teamSummary(fixturesRaw, team.id);
-  const form = recentForm(fixturesRaw, team.id);
   const tiles = [
     { label: "Zápasy", value: summary.played },
     { label: "V-R-P", value: `${summary.wins}-${summary.draws}-${summary.losses}` },
@@ -866,16 +850,6 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
         { label: "Ø minuta 1. karty", value: averages.firstCardMinuteAvg !== null ? `${averages.firstCardMinuteAvg}'` : "—" },
       ]
     : [];
-
-  const formStrip = form
-    .map(
-      (f) => `<div class="form-chip">
-        <div class="result-badge" style="background:${RESULT_COLOR[f.result]};">${f.result}</div>
-        <div>${escapeHtml(f.opponent)}</div>
-        <div class="mono">${escapeHtml(f.score)}</div>
-      </div>`
-    )
-    .join("");
 
   const matchCards = fixtureRows
     .slice()
@@ -929,7 +903,6 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
       <div class="tiles">
         ${tiles.map((t) => `<div class="tile"><div class="tile-label">${escapeHtml(t.label)}</div><div class="tile-value mono">${escapeHtml(t.value)}</div></div>`).join("")}
       </div>
-      ${form.length ? `<div class="form-strip">${formStrip}</div>` : ""}
     </div>
 
     ${
