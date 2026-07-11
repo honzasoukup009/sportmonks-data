@@ -739,10 +739,12 @@ function teamAverages(fixtureRows) {
   return {
     matches: n,
     cornersAvg: avg("corners"),
+    cornersSum: sum("corners"),
     cardsAvg: Math.round(((sum("yellow") + sum("red")) / n) * 10) / 10,
     foulsAvg: avg("fouls"),
     shotsAvg: avg("shots"),
     shotsOnTargetAvg: avg("shotsOnTarget"),
+    shotsOnTargetSum: sum("shotsOnTarget"),
     cardBy30Pct: pct("cardBy30", "Ano"),
     goalBy30Pct: pct("goalBy30", "Ano"),
     firstCardMinuteAvg,
@@ -780,6 +782,86 @@ function overProbability(line, lambda) {
 function thresholdLines(lambda) {
   const base = Math.floor(lambda) + 0.5;
   return [base - 1, base, base + 1].filter((line) => line > 0);
+}
+
+// --- Bayesian Gamma-Poisson (Negative-Binomial) alternative for corners and
+// shots on target, where a backtest on two real Chance Liga seasons showed
+// real overdispersion (variance ~1.6-1.7x the mean — plain Poisson is
+// measurably too confident) and the Bayesian model won on out-of-sample
+// log-likelihood. Cards/fouls stay on plain Poisson: their data is close to
+// Poisson-consistent (variance ~1.0-1.1x the mean) and the backtest showed
+// only a marginal difference there. GAMMA_PRIORS below were fit via
+// empirical-Bayes method-of-moments across all 17 Chance Liga teams' 2024/25
+// + 2025/26 season rates; refit periodically as more seasons accumulate.
+const GAMMA_PRIORS = {
+  cornersAvg: { sumKey: "cornersSum", alpha0: 29.8, beta0: 6.03 },
+  shotsOnTargetAvg: { sumKey: "shotsOnTargetSum", alpha0: 16.03, beta0: 3.91 },
+};
+
+// Lanczos approximation - the standard self-contained way to get log(Gamma(x))
+// without a math library, accurate to ~15 significant digits for x > 0.
+function logGamma(x) {
+  const g = 7;
+  const coeffs = [
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059,
+    12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+  ];
+  if (x < 0.5) {
+    // Reflection formula for small x.
+    return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
+  }
+  x -= 1;
+  let a = coeffs[0];
+  const t = x + g + 0.5;
+  for (let i = 1; i < g + 2; i++) a += coeffs[i] / (x + i);
+  return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a);
+}
+
+// Posterior predictive of X | lambda ~ Poisson(lambda), lambda ~ Gamma(alpha, beta)
+// (rate parameterisation, mean = alpha/beta) is Negative-Binomial(r=alpha, p=beta/(beta+1)).
+function negBinomLogPmf(k, alpha, beta) {
+  const p = beta / (beta + 1);
+  return logGamma(k + alpha) - logGamma(alpha) - logGamma(k + 1) + alpha * Math.log(p) + k * Math.log(1 - p);
+}
+
+function negBinomPmfArray(alpha, beta, maxK) {
+  const out = new Array(maxK + 1);
+  for (let k = 0; k <= maxK; k++) out[k] = Math.exp(negBinomLogPmf(k, alpha, beta));
+  return out;
+}
+
+// Distribution of a match total (home + away, independent) under the Bayesian
+// model isn't itself Negative-Binomial in general, so convolve the two teams'
+// posterior-predictive pmfs directly rather than trying to force a closed form.
+function convolvePmf(pmfA, pmfB, maxK) {
+  const out = new Array(maxK + 1).fill(0);
+  for (let i = 0; i <= maxK; i++) {
+    if (pmfA[i] === 0) continue;
+    for (let j = 0; i + j <= maxK && j <= maxK; j++) {
+      out[i + j] += pmfA[i] * pmfB[j];
+    }
+  }
+  return out;
+}
+
+const NEGBINOM_MAX_COUNT = 60;
+
+// P(X > line) for a X.5 line, using the convolved home+away posterior-predictive pmf.
+function overProbabilityBayes(line, homeAvg, awayAvg, prior) {
+  const { sumKey, alpha0, beta0 } = prior;
+  const alphaHome = alpha0 + (Number(homeAvg[sumKey]) || 0);
+  const betaHome = beta0 + (Number(homeAvg.matches) || 0);
+  const alphaAway = alpha0 + (Number(awayAvg[sumKey]) || 0);
+  const betaAway = beta0 + (Number(awayAvg.matches) || 0);
+
+  const pmfTotal = convolvePmf(
+    negBinomPmfArray(alphaHome, betaHome, NEGBINOM_MAX_COUNT),
+    negBinomPmfArray(alphaAway, betaAway, NEGBINOM_MAX_COUNT),
+    NEGBINOM_MAX_COUNT
+  );
+  const threshold = Math.ceil(line) - 1;
+  const cdf = pmfTotal.slice(0, threshold + 1).reduce((a, b) => a + b, 0);
+  return 1 - Math.min(cdf, 1);
 }
 
 // ============================== Views ==============================
@@ -1245,10 +1327,18 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers, leagueId) 
 }
 
 const MATCH_PREDICTION_MARKETS = [
-  { label: "Rohy", avgKey: "cornersAvg" },
+  {
+    label: "Rohy",
+    avgKey: "cornersAvg",
+    title: "Odhad zohledňuje i typický rozptyl počtu rohů mezi zápasy (Bayesovský model)",
+  },
   { label: "Karty", avgKey: "cardsAvg", title: "Žluté i červené karty dohromady" },
   { label: "Fauly", avgKey: "foulsAvg" },
-  { label: "Střely na branku", avgKey: "shotsOnTargetAvg" },
+  {
+    label: "Střely na branku",
+    avgKey: "shotsOnTargetAvg",
+    title: "Odhad zohledňuje i typický rozptyl počtu střel mezi zápasy (Bayesovský model)",
+  },
 ];
 
 function renderMatchPrediction(prediction, home, away) {
@@ -1258,9 +1348,11 @@ function renderMatchPrediction(prediction, home, away) {
   const rows = MATCH_PREDICTION_MARKETS.map(({ label, avgKey, title }) => {
     const lambda = (Number(homeAvg[avgKey]) || 0) + (Number(awayAvg[avgKey]) || 0);
     if (!lambda) return "";
+    const prior = GAMMA_PRIORS[avgKey];
     const lineCells = thresholdLines(lambda)
       .map((line) => {
-        const pct = Math.round(overProbability(line, lambda) * 100);
+        const probability = prior ? overProbabilityBayes(line, homeAvg, awayAvg, prior) : overProbability(line, lambda);
+        const pct = Math.round(probability * 100);
         return `<td class="mono">nad ${escapeHtml(line)}: ${pct} %</td>`;
       })
       .join("");
