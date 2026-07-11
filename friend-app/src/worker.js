@@ -1307,7 +1307,9 @@ function renderMatchPrediction(prediction, home, away) {
           ? `<div style="font-weight:600;font-size:14px;margin-top:18px;padding-top:14px;border-top:1px solid var(--border);">Jiná otázka: padne karta brzy?</div>
             <p class="hint" style="margin-top:6px;">Tohle nesouvisí s počtem karet v tabulce výše (ten je za celý zápas) — jde jen o to, jestli padne
               <strong>alespoň jedna</strong> karta (kterýkoliv tým) už v prvních 30 minutách: v zápasech obou týmů v průměru
-              ${cardBy30} % (${home?.name || ""} ${homeAvg.cardBy30Pct} %, ${away?.name || ""} ${awayAvg.cardBy30Pct} %).</p>`
+              <span class="mono" style="font-weight:600;">${cardBy30} %</span>
+              (${escapeHtml(home?.name || "")} <span class="mono" style="font-weight:600;">${homeAvg.cardBy30Pct} %</span>,
+              ${escapeHtml(away?.name || "")} <span class="mono" style="font-weight:600;">${awayAvg.cardBy30Pct} %</span>).</p>`
           : ""
       }
     </div>
