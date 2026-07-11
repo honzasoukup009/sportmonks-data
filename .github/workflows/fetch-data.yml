@@ -62,6 +62,13 @@ jobs:
             ${{ inputs.end != '' && format('--end "{0}"', inputs.end) || '' }} \
             --output "data/${{ inputs.entity }}-${{ inputs.id }}.csv"
 
+      - name: Probe league-filtered fixtures (temporary)
+        if: always() && inputs.id == 'PROBE'
+        env:
+          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
+        run: |
+          curl -s "https://api.sportmonks.com/v3/football/fixtures/between/2024-08-01/2026-06-01?filters=fixtureLeagues:262&api_token=$SPORTMONKS_API_TOKEN&per_page=2" | python3 -m json.tool | head -100
+
       - uses: actions/upload-artifact@v4
         with:
           name: sportmonks-${{ inputs.entity }}-${{ inputs.id }}
