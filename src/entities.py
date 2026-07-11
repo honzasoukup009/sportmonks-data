@@ -54,11 +54,4 @@ ENTITY_ENDPOINTS = {
         "path": "fixtures/{id}",
         "include": None,
     },
-    "my-leagues": {
-        # --id is unused for this entity (no path param) but the CLI requires one.
-        # Lives under the Core API root (v3/my/...), not v3/football, unlike everything else here.
-        "path": "leagues",
-        "include": None,
-        "base_url": "https://api.sportmonks.com/v3/my",
-    },
 }
