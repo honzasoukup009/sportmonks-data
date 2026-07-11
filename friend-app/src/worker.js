@@ -21,6 +21,7 @@ const PAGE_STYLE = `
   .app { display: flex; min-height: 100vh; }
   .sidebar { width: 220px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 18px; display: flex; flex-direction: column; }
   .brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px; }
+  .brand-name a { color: inherit; text-decoration: none; }
   .brand-sub { font-size: 11px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
   .nav { display: flex; flex-direction: column; gap: 4px; margin-top: 28px; }
   .navlink { display: block; padding: 10px 12px; border-radius: 8px; font-weight: 600; font-size: 14px; color: var(--text-dim); border-left: 3px solid transparent; }
@@ -90,7 +91,7 @@ function shell(activeNav, body) {
     <div class="app">
       <aside class="sidebar">
         <div>
-          <div class="brand-name">LIGASTAT</div>
+          <div class="brand-name"><a href="/team">LIGASTAT</a></div>
           <div class="brand-sub">Chance Liga · Analytika</div>
         </div>
         <nav class="nav">
