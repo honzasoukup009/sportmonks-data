@@ -1378,8 +1378,9 @@ function renderMatchPrediction(prediction, home, away) {
       <h2>Odhad pro tento zápas</h2>
       <p class="hint">Založeno na průměrech obou týmů za sezóny ${escapeHtml(rangeLabel || "")}
         (${escapeHtml(home?.name || "")}: ${escapeHtml(homeAvg.matches)} zápasů, ${escapeHtml(away?.name || "")}:
-        ${escapeHtml(awayAvg.matches)} zápasů). Jednoduchý statistický odhad (Poissonovo rozdělení z průměrů) —
-        orientační vodítko, ne skutečná predikce ani kurz.</p>
+        ${escapeHtml(awayAvg.matches)} zápasů). Jednoduchý statistický odhad — u faulů a karet Poissonovo rozdělení,
+        u rohů a střel na branku přesnější Bayesovský model (najeď myší na název řádku) — orientační vodítko,
+        ne skutečná predikce ani kurz.</p>
 
       <div style="font-weight:600;font-size:14px;margin-top:16px;">Za celý zápas (0–90+ minut)</div>
       <div class="overflow-x">
