@@ -20,6 +20,7 @@ on:
           - topscorers
           - league-seasons
           - league-search
+          - league-fixtures
           - fixture
       id:
         description: "Entity ID, or a name/query for *-search entities"
@@ -61,27 +62,6 @@ jobs:
             ${{ inputs.start != '' && format('--start "{0}"', inputs.start) || '' }} \
             ${{ inputs.end != '' && format('--end "{0}"', inputs.end) || '' }} \
             --output "data/${{ inputs.entity }}-${{ inputs.id }}.csv"
-
-      - name: Probe league-filtered fixtures (temporary)
-        if: always() && inputs.id == 'PROBE'
-        env:
-          SPORTMONKS_API_TOKEN: ${{ secrets.SPORTMONKS_API_TOKEN }}
-        run: |
-          curl -s "https://api.sportmonks.com/v3/football/fixtures/between/2024-08-01/2024-10-29?filters=fixtureLeagues:262&include=participants;statistics.type&api_token=$SPORTMONKS_API_TOKEN" > /tmp/probe.json
-          python3 - <<'PYEOF'
-          import json
-          with open('/tmp/probe.json') as fh:
-              payload = json.load(fh)
-          print('message:', payload.get('message'))
-          data = payload.get('data', [])
-          print('count:', len(data))
-          print('pagination:', payload.get('pagination'))
-          if data:
-              f = data[0]
-              print('sample fixture keys:', list(f.keys()))
-              print('sample participants:', [(p.get('id'), p.get('name'), p.get('meta')) for p in f.get('participants', [])])
-              print('sample stat entry:', (f.get('statistics') or [{}])[0])
-          PYEOF
 
       - uses: actions/upload-artifact@v4
         with:

@@ -72,9 +72,10 @@ def main(argv: list[str] | None = None) -> int:
     config = ENTITY_ENDPOINTS[args.entity]
     path = config["path"].format(id=args.id, start=start, end=end)
     include = args.include or config["include"]
+    extra_params = {k: v.format(id=args.id) for k, v in config.get("extra_params", {}).items()}
 
     client = SportmonksClient()
-    records = client.get(path, include=include)
+    records = client.get(path, include=include, extra_params=extra_params or None)
 
     if not records:
         print("No data returned.", file=sys.stderr)
