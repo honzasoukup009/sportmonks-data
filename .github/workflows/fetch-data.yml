@@ -19,6 +19,7 @@ on:
           - standings
           - topscorers
           - league-seasons
+          - league-search
           - fixture
           - my-leagues
       id:
