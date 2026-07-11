@@ -856,7 +856,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
       (group) => `
         <div class="group-label" style="color:${group.color};background:${group.bg};">${escapeHtml(group.label)}</div>
         <table>
-          <thead><tr><th>Č.</th><th>Hráč</th><th>Z</th><th>G</th><th>A</th><th>ŽK</th><th>ČK</th><th>Min</th></tr></thead>
+          <thead><tr><th title="Číslo dresu">Č.</th><th>Hráč</th><th title="Zápasy">Z</th><th title="Góly">G</th><th title="Asistence">A</th><th title="Žluté karty">ŽK</th><th title="Červené karty">ČK</th><th title="Minuty">Min</th></tr></thead>
           <tbody>
             ${group.players
               .map(
@@ -1007,12 +1007,14 @@ function renderHalfStatsTable(fixture, home, away) {
 
   const homeCode = escapeHtml(badgeCode(home));
   const awayCode = escapeHtml(badgeCode(away));
+  const homeName = escapeHtml(home?.name || "");
+  const awayName = escapeHtml(away?.name || "");
   return `
     <div class="overflow-x">
       <table>
         <thead>
           <tr><th></th><th colspan="2">1. poločas</th><th colspan="2">2. poločas</th></tr>
-          <tr><th>Statistika</th><th>${homeCode}</th><th>${awayCode}</th><th>${homeCode}</th><th>${awayCode}</th></tr>
+          <tr><th>Statistika</th><th title="${homeName}">${homeCode}</th><th title="${awayName}">${awayCode}</th><th title="${homeName}">${homeCode}</th><th title="${awayName}">${awayCode}</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -1052,15 +1054,15 @@ function renderTimeline(fixture, homeId) {
 }
 
 const LINEUP_TABLE_COLUMNS = [
-  { key: "rating", label: "Hod" },
-  { key: "minutes", label: "Min" },
-  { key: "passes", label: "Přih" },
-  { key: "shots", label: "Stř" },
-  { key: "shotsOnTarget", label: "NaBr" },
-  { key: "fouls", label: "F" },
-  { key: "crosses", label: "Cen" },
-  { key: "assists", label: "As" },
-  { key: "saves", label: "Zákr" },
+  { key: "rating", label: "Hod", title: "Hodnocení" },
+  { key: "minutes", label: "Min", title: "Minuty" },
+  { key: "passes", label: "Přih", title: "Přihrávky" },
+  { key: "shots", label: "Stř", title: "Střely" },
+  { key: "shotsOnTarget", label: "NaBr", title: "Střely na branku" },
+  { key: "fouls", label: "F", title: "Fauly" },
+  { key: "crosses", label: "Cen", title: "Centry" },
+  { key: "assists", label: "As", title: "Asistence" },
+  { key: "saves", label: "Zákr", title: "Zákroky (brankář)" },
 ];
 
 function renderLineupColumn(fixture, teamId, teamName) {
@@ -1086,7 +1088,7 @@ function renderLineupColumn(fixture, teamId, teamName) {
             <thead>
               <tr>
                 <th>Č.</th><th>Hráč</th>
-                ${LINEUP_TABLE_COLUMNS.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("")}
+                ${LINEUP_TABLE_COLUMNS.map((c) => `<th title="${escapeHtml(c.title)}">${escapeHtml(c.label)}</th>`).join("")}
               </tr>
             </thead>
             <tbody>
@@ -1203,7 +1205,7 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers) {
       ${
         table.length
           ? `<div class="overflow-x"><table>
-              <thead><tr><th>Poř.</th><th>Tým</th><th>Z</th><th>V</th><th>R</th><th>P</th><th>Skóre</th><th>B</th></tr></thead>
+              <thead><tr><th title="Pořadí">Poř.</th><th>Tým</th><th title="Zápasy">Z</th><th title="Výhry">V</th><th title="Remízy">R</th><th title="Prohry">P</th><th>Skóre</th><th title="Body">B</th></tr></thead>
               <tbody>${tableRows}</tbody>
             </table></div>`
           : `<p class="hint">Pro tuto sezónu není tabulka k dispozici.</p>`
