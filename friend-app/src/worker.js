@@ -741,6 +741,39 @@ function teamAverages(fixtureRows) {
   };
 }
 
+// --- Simple Poisson-based over/under probability estimate for match totals
+// (corners/cards/fouls/shots), used to preview upcoming fixtures. A season
+// is ~30 matches — nowhere near enough for anything fancier than a classical
+// count distribution, and pretending otherwise would be dishonest. Corners/
+// cards/fouls/shots are each team's own output, so a match total is
+// approximated as the sum of both teams' season averages (sum of two
+// independent Poisson variables is itself Poisson with the summed mean).
+function poissonCdf(k, lambda) {
+  if (lambda <= 0) return k >= 0 ? 1 : 0;
+  // Iterative form (term_i = term_{i-1} * lambda / i) avoids computing raw
+  // factorials/powers, which overflow for the k/lambda ranges fouls can reach.
+  let term = Math.exp(-lambda);
+  let cumulative = term;
+  for (let i = 1; i <= k; i++) {
+    term *= lambda / i;
+    cumulative += term;
+  }
+  return Math.min(cumulative, 1);
+}
+
+// P(X > line) for a X.5 betting line.
+function overProbability(line, lambda) {
+  const threshold = Math.ceil(line);
+  return 1 - poissonCdf(threshold - 1, lambda);
+}
+
+// Three X.5 lines bracketing the expected value, so the reader can compare
+// against whatever line their sportsbook actually offers.
+function thresholdLines(lambda) {
+  const base = Math.floor(lambda) + 0.5;
+  return [base - 1, base, base + 1].filter((line) => line > 0);
+}
+
 function recentForm(fixturesRaw, teamId, count = 5) {
   return fixturesRaw
     .filter((f) => classifyResult(f, teamId))
@@ -1220,7 +1253,58 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers) {
   return shell("league", body);
 }
 
-function renderMatchPage(fixture, teamId, h2h, seasonId) {
+const MATCH_PREDICTION_MARKETS = [
+  { label: "Rohy", avgKey: "cornersAvg" },
+  { label: "Karty", avgKey: "cardsAvg" },
+  { label: "Fauly", avgKey: "foulsAvg" },
+  { label: "Střely na branku", avgKey: "shotsOnTargetAvg" },
+];
+
+function renderMatchPrediction(prediction, home, away) {
+  if (!prediction) return "";
+  const { referenceSeason, homeAvg, awayAvg } = prediction;
+
+  const rows = MATCH_PREDICTION_MARKETS.map(({ label, avgKey }) => {
+    const lambda = (Number(homeAvg[avgKey]) || 0) + (Number(awayAvg[avgKey]) || 0);
+    if (!lambda) return "";
+    const lineCells = thresholdLines(lambda)
+      .map((line) => {
+        const pct = Math.round(overProbability(line, lambda) * 100);
+        return `<td class="mono">nad ${escapeHtml(line)}: ${pct} %</td>`;
+      })
+      .join("");
+    return `<tr><td>${escapeHtml(label)}</td><td class="mono">${lambda.toFixed(1)}</td>${lineCells}</tr>`;
+  }).join("");
+
+  if (!rows) return "";
+
+  const cardBy30 =
+    homeAvg.cardBy30Pct !== undefined && awayAvg.cardBy30Pct !== undefined
+      ? Math.round((homeAvg.cardBy30Pct + awayAvg.cardBy30Pct) / 2)
+      : null;
+
+  return `
+    <div class="card">
+      <h2>Odhad pro tento zápas</h2>
+      <p class="hint">Založeno na průměrech obou týmů ze sezóny ${escapeHtml(referenceSeason?.name || "")}
+        (${escapeHtml(home?.name || "")} + ${escapeHtml(away?.name || "")}). Jednoduchý statistický odhad
+        (Poissonovo rozdělení ze sezónních průměrů) — orientační vodítko, ne skutečná predikce ani kurz.</p>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Statistika</th><th title="Očekávaná hodnota — součet průměrů obou týmů">Ø</th><th colspan="3">Pravděpodobnost, že padne...</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      ${
+        cardBy30 !== null
+          ? `<p class="hint" style="margin-top:10px;">Karta do 30. minuty: v zápasech obou týmů v průměru ${cardBy30} % (${home?.name || ""} ${homeAvg.cardBy30Pct} %, ${away?.name || ""} ${awayAvg.cardBy30Pct} %).</p>`
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderMatchPage(fixture, teamId, h2h, seasonId, prediction) {
   const participants = fixture.participants || [];
   const home = participants.find((p) => p.meta?.location === "home");
   const away = participants.find((p) => p.meta?.location === "away");
@@ -1291,7 +1375,7 @@ function renderMatchPage(fixture, teamId, h2h, seasonId) {
                 : ""
             }
           </div>`
-        : ""
+        : renderMatchPrediction(prediction, home, away)
     }
 
     <div class="card">
@@ -1468,9 +1552,17 @@ async function handleSeasonPage(seasonId, env) {
   return htmlResponse(renderSeasonPage(displayable, selected, table, topScorers));
 }
 
+async function fetchTeamAveragesForSeason(teamId, season, token) {
+  if (!season) return null;
+  const fixturesRaw = await fetchFixtures(teamId, season.starting_at.slice(0, 10), season.ending_at.slice(0, 10), token);
+  const fixtureRows = fixturesRaw.map((f) => fixtureRow(f, teamId));
+  return teamAverages(fixtureRows);
+}
+
 async function handleMatchPage(fixtureId, teamId, seasonId, env) {
   try {
-    const fixture = await fetchFixtureById(fixtureId, env.SPORTMONKS_API_TOKEN);
+    const token = env.SPORTMONKS_API_TOKEN;
+    const fixture = await fetchFixtureById(fixtureId, token);
     if (!fixture) throw new Error("Zápas se nepodařilo najít.");
 
     const participants = fixture.participants || [];
@@ -1478,11 +1570,31 @@ async function handleMatchPage(fixtureId, teamId, seasonId, env) {
     const away = participants.find((p) => p.meta?.location === "away");
     let h2h = [];
     if (home && away) {
-      const all = await fetchHeadToHead(home.id, away.id, env.SPORTMONKS_API_TOKEN);
+      const all = await fetchHeadToHead(home.id, away.id, token);
       h2h = all.filter((f) => f.id !== fixture.id).sort((a, b) => (a.starting_at < b.starting_at ? 1 : -1));
     }
 
-    return htmlResponse(renderMatchPage(fixture, teamId, h2h, seasonId));
+    // Only worth computing a preview for matches that haven't happened yet —
+    // for a finished match we already show what actually happened.
+    let prediction = null;
+    const alreadyPlayed = !!scoreAt(fixture.scores || [], "CURRENT");
+    if (!alreadyPlayed && home && away) {
+      try {
+        const seasons = await fetchLeagueSeasons(LEAGUES[0].id, token);
+        const referenceSeason = pickSeason(displayableSeasons(seasons), null);
+        const [homeAvg, awayAvg] = await Promise.all([
+          fetchTeamAveragesForSeason(home.id, referenceSeason, token),
+          fetchTeamAveragesForSeason(away.id, referenceSeason, token),
+        ]);
+        if (homeAvg && awayAvg) {
+          prediction = { referenceSeason, homeAvg, awayAvg };
+        }
+      } catch {
+        // No prediction rather than a broken page if the underlying data fails.
+      }
+    }
+
+    return htmlResponse(renderMatchPage(fixture, teamId, h2h, seasonId, prediction));
   } catch (err) {
     return redirectTo(`/team/${teamId}`);
   }

@@ -54,8 +54,11 @@ otevře odkaz v prohlížeči.
    (rohy, držení míče, fauly, střely, karty — porovnání obou týmů), **statistiky podle poločasu** (žluté/
    červené karty, rohy, fauly, střely na branku, ofsajdy — zvlášť za 1. a 2. poločas, oba týmy), průběh
    zápasu (góly a karty s minutou a jménem hráče), sestavy obou týmů — pod sebou, každá jako tabulka podle
-   postu (hodnocení, minuty, přihrávky, střely/na branku, fauly, centry, asistence, zákroky u brankářů) —
-   a posledních 5 vzájemných zápasů.
+   postu (hodnocení, minuty, přihrávky, střely/na branku, fauly, centry, asistence, zákroky u brankářů),
+   posledních 5 vzájemných zápasů a — u zápasů, které se ještě neodehrály — **odhad pro tento zápas**:
+   očekávaný počet rohů/karet/faulů/střel na branku (součet sezónních průměrů obou týmů) a pravděpodobnost
+   překročení tří hranic kolem tohoto průměru, plus průměrná šance na kartu do 30. minuty. Je to jednoduchý
+   statistický odhad (Poissonovo rozdělení), ne skutečná predikce ani kurz — orientační vodítko.
 6. Kdekoliv na stránce Tým může kliknout na "Stáhnout jako Excel (CSV)" u kádru nebo u zápasů; na stránce
    Zápas jde stejně stáhnout sestavy obou týmů se statistikami hráčů — export sestav obsahuje ještě víc
    detailů než web (klíčové přihrávky, vytvořené/zahozené šance, vynucené fauly, penalty, skluzy, vyhrané
