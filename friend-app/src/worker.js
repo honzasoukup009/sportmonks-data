@@ -439,7 +439,11 @@ const PLAYER_STAT_KEYS = {
 };
 
 function latestSeasonStats(player) {
-  const seasons = player?.statistics || [];
+  // Sportmonks pre-creates an empty statistics placeholder for next season
+  // (details: []) before it even starts, and it always has the highest
+  // season_id — so picking by season_id alone grabs that empty entry instead
+  // of the actual current season. Only consider seasons with real data.
+  const seasons = (player?.statistics || []).filter((s) => (s.details || []).length > 0);
   if (!seasons.length) return {};
   const latest = seasons.reduce((a, b) => (b.season_id > a.season_id ? b : a));
   const out = {};
