@@ -50,4 +50,9 @@ ENTITY_ENDPOINTS = {
         "path": "fixtures/{id}",
         "include": None,
     },
+    "my-leagues": {
+        # --id is unused for this entity (no path param) but the CLI requires one.
+        "path": "my/leagues",
+        "include": "country",
+    },
 }

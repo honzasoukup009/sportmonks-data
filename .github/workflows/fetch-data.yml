@@ -20,6 +20,7 @@ on:
           - topscorers
           - league-seasons
           - fixture
+          - my-leagues
       id:
         description: "Entity ID, or a name/query for *-search entities"
         required: true
