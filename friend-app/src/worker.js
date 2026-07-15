@@ -1538,7 +1538,7 @@ function renderHelpPage() {
           </defs>
 
           <rect x="400" y="20" width="240" height="56" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" stroke-width="1.5" />
-          <text x="520" y="44" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="13" fill="var(--text)">Prohlížeč (kamarád)</text>
+          <text x="520" y="44" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="13" fill="var(--text)">Prohlížeč (sázkař)</text>
           <text x="520" y="62" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">mobil / počítač, žádný JS</text>
 
           <line x1="500" y1="76" x2="500" y2="107" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
