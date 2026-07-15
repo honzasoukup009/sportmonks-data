@@ -1433,6 +1433,7 @@ function renderHelpPage() {
         <a href="#tym">Stránka Tým</a><br>
         <a href="#zapas">Stránka Zápas</a><br>
         <a href="#sezony">Stránka Sezóny</a><br>
+        <a href="#architektura">Technický přehled: co se odkud stahuje</a><br>
         <a href="#obecne">Obecné poznámky a omezení</a>
       </p>
     </div>
@@ -1518,6 +1519,99 @@ function renderHelpPage() {
       <p>V postranním menu. Ligové chipy nahoře přepínají mezi všemi pěti ligami, sezónní chipy pod nimi mezi
         ročníky vybrané ligy. Ukazuje tabulku (s barevně odlišenou špičkou a sestupovou zónou) a přehled
         10 nejlepších střelců sezóny.</p>
+    </div>
+
+    <div class="card" id="architektura">
+      <h2>Technický přehled: co se odkud stahuje</h2>
+      <p class="hint">Tahle sekce je spíš pro vývojáře než pro běžné použití — mapuje, který dotaz na Sportmonks
+        naplní kterou část stránky. Appka nic necachuje: každé otevření stránky spustí dotazy popsané níže,
+        vždy jen po zadání PINu a konkrétní akci.</p>
+
+      <div class="overflow-x">
+        <pre class="mono" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:12px;line-height:1.7;white-space:pre;">PIN (POST /) → cookie session (24h)
+  │
+  ▼
+Výběr týmu (GET/POST /team)
+  ├─ leagues/{id}?include=currentseason        (5×, jedna liga = jeden dotaz)
+  └─ teams/seasons/{seasonId}                  (5×, seznam týmů dané ligy)
+  │
+  ▼
+Stránka Tým (GET /team/:id)
+  ├─ teams/{id}?include=venue
+  ├─ leagues/{id}?include=seasons
+  ├─ fixtures/between/{start}/{end}/{teamId}?include=participants;scores;
+  │     statistics.type;events.type;referees.referee;referees.type;
+  │     periods.statistics.type                (vybraná sezóna)
+  ├─ squads/teams/{teamId}?include=player.statistics.details.type;position
+  ├─ standings/seasons/{id}                     (za každou DOKONČENOU sezónu)
+  └─ fixtures/between/{start}/{end}/{teamId}     (znovu, širší okno — jen
+                                                   když je zadané "Posledních N zápasů")
+  │
+  ▼ (klik na zápas)
+Stránka Zápas (GET /match/:id)
+  ├─ fixtures/{id}?include=participants;scores;statistics.type;events.type;
+  │     referees.referee;referees.type;lineups.player;lineups.type;
+  │     lineups.position;lineups.details.type;formations;league;
+  │     periods.statistics.type
+  ├─ fixtures/head-to-head/{teamA}/{teamB}?include=participants;scores;league
+  └─ leagues/{id}?include=seasons + fixtures/between/... ×2  (jen u budoucích
+                                                   zápasů — Odhad pro tento zápas)
+
+Sezóny (GET /league)
+  ├─ leagues/{id}?include=seasons
+  ├─ standings/seasons/{id}?include=participant;details.type
+  └─ topscorers/seasons/{id}?include=player;participant;type</pre>
+      </div>
+
+      <h3 style="margin-top:20px;font-size:15px;">Výběr týmu</h3>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">leagues/{id}?include=currentseason</td><td>ID aktuální sezóny dané ligy</td><td>Zjištění, kterou sezónu stáhnout pro seznam týmů</td></tr>
+            <tr><td class="mono">teams/seasons/{seasonId}</td><td>Seznam týmů v dané sezóně</td><td>Položky v roletce dané ligy</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:20px;font-size:15px;">Stránka Tým</h3>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">teams/{id}?include=venue</td><td>Název týmu, stadion</td><td>Nadpis stránky</td></tr>
+            <tr><td class="mono">leagues/{id}?include=seasons</td><td>Všechny sezóny ligy (i budoucí)</td><td>Sezónní chipy, pooling pro "Posledních N zápasů" a odhad zápasu</td></tr>
+            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy týmu ve vybrané sezóně se statistikami, událostmi a poločasy</td><td>Souhrn sezóny, Průměry a časování, Zápasy, CSV export</td></tr>
+            <tr><td class="mono">squads/teams/{id}</td><td>Soupiska se sezónními statistikami hráčů</td><td>Kádr + CSV export</td></tr>
+            <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka dané sezóny (za každou dokončenou)</td><td>Historie sezón</td></tr>
+            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Posledních N zápasů (jen když je zadané)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:20px;font-size:15px;">Stránka Zápas</h3>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">fixtures/{id}</td><td>Kompletní detail zápasu — statistiky, události, sestavy, formace, poločasy</td><td>Skóre, klíčové statistiky, statistiky podle poločasu, průběh zápasu, sestavy + CSV export</td></tr>
+            <tr><td class="mono">fixtures/head-to-head/{a}/{b}</td><td>Poslední vzájemné zápasy</td><td>Vzájemné zápasy</td></tr>
+            <tr><td class="mono">leagues/{id} + fixtures/between/… (×2)</td><td>Sezónní průměry obou týmů</td><td>Odhad pro tento zápas (jen u budoucích zápasů)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:20px;font-size:15px;">Stránka Sezóny</h3>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">leagues/{id}?include=seasons</td><td>Seznam sezón dané ligy</td><td>Sezónní chipy</td></tr>
+            <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka soutěže</td><td>Tabulka</td></tr>
+            <tr><td class="mono">topscorers/seasons/{id}</td><td>Nejlepší střelci sezóny</td><td>Nejlepší střelci</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div class="card" id="obecne">
