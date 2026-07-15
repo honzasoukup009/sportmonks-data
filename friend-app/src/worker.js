@@ -588,10 +588,12 @@ function lineupRow(entry, teamName) {
   };
 }
 
+const GOAL_TYPE_NAMES = ["Goal", "Penalty", "Own Goal"];
+
 function summarizeGoals(fixture, teamNames) {
   const events = fixture.events || [];
   return events
-    .filter((e) => e.type?.name === "Goal" || e.type?.name === "Penalty")
+    .filter((e) => GOAL_TYPE_NAMES.includes(e.type?.name))
     .sort((a, b) => Number(a.minute) - Number(b.minute))
     .map((e) => `${formatMinute(e)} ${e.player_name || "?"} (${teamNames[e.participant_id] || ""})`)
     .join(", ");
@@ -643,8 +645,8 @@ function fixtureRow(fixture, teamId) {
   // string) for anyone who wants to build their own pivot tables/averages in
   // Excel from the CSV export, rather than just reading pre-baked averages.
   const allEvents = fixture.events || [];
-  const cardEvents = allEvents.filter((e) => e.type?.name === "Yellowcard" || e.type?.name === "Redcard");
-  const goalEvents = allEvents.filter((e) => e.type?.name === "Goal" || e.type?.name === "Penalty");
+  const cardEvents = allEvents.filter((e) => CARD_LABELS[e.type?.name]);
+  const goalEvents = allEvents.filter((e) => GOAL_TYPE_NAMES.includes(e.type?.name));
   const firstCardMinute = cardEvents.length ? Math.min(...cardEvents.map((e) => Number(e.minute))) : "";
 
   return {
