@@ -103,6 +103,7 @@ function shell(activeNav, body) {
         <nav class="nav">
           <a class="navlink ${activeNav === "team" ? "active" : ""}" href="/team">Tým</a>
           <a class="navlink ${activeNav === "league" ? "active" : ""}" href="/league">Sezóny</a>
+          <a class="navlink ${activeNav === "help" ? "active" : ""}" href="/help">Nápověda</a>
         </nav>
         <div class="sidebar-footer">Zdroj dat: Sportmonks API</div>
       </aside>
@@ -1420,6 +1421,119 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers, leagueId) 
   return shell("league", body);
 }
 
+function renderHelpPage() {
+  const body = `
+    <h1>Nápověda</h1>
+    <p class="lead">Co se kde zobrazuje a jak se to počítá — jedna stránka se vším podstatným.</p>
+
+    <div class="card">
+      <h2>Obsah</h2>
+      <p class="hint" style="line-height:2;">
+        <a href="#zaklad">Jak appka funguje</a><br>
+        <a href="#tym">Stránka Tým</a><br>
+        <a href="#zapas">Stránka Zápas</a><br>
+        <a href="#sezony">Stránka Sezóny</a><br>
+        <a href="#obecne">Obecné poznámky a omezení</a>
+      </p>
+    </div>
+
+    <div class="card" id="zaklad">
+      <h2>Jak appka funguje</h2>
+      <p>Appka je bez JavaScriptu — každý klik je normální odkaz nebo formulář, žádné dotahování dat na pozadí.
+        Sportmonks se volá <strong>až po zadání správného PINu a konkrétní akci</strong> (výběr týmu, kliknutí na
+        zápas...) — samotné otevření odkazu bez PINu nic nestahuje, takže cizí návštěvník s odkazem nemůže
+        vyčerpat limit dotazů. Přihlášení se pamatuje 24 hodin (cookie), není potřeba zadávat PIN znovu při
+        každé stránce.</p>
+    </div>
+
+    <div class="card" id="tym">
+      <h2>Stránka Tým</h2>
+      <p>Po zadání PINu vybereš tým z jedné z pěti ligových roletek (Chance Liga, Premier League, Bundesliga,
+        Serie A, La Liga) — každá liga má vlastní roletku, ne všechny týmy v jedné.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Sezónní chipy a přehled</h3>
+      <p>Chipy nahoře přepínají sezónu (aktuální i starší ročníky). Karta "Sezóna..." ukazuje základní souhrn
+        za vybranou sezónu: počet zápasů, V-R-P, body, skóre.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Průměry a časování</h3>
+      <p>Rohy/karty/fauly/střely na zápas jsou průměr <strong>za vybraný tým</strong> (jeho vlastní čísla).
+        Naproti tomu <strong>"Karta v 1. poločase"</strong> a <strong>"Gól v 1. poločase"</strong> jsou jiné —
+        počítají se za <strong>celý zápas obou týmů dohromady</strong>: pokud v zápase dostane kartu (nebo dá gól)
+        kterýkoliv z týmů už v prvním poločase, ten zápas se počítá jako "Ano". Je to schválně takhle, protože
+        to odpovídá tomu, jak jsou obvykle formulované sázkové trhy typu "padne karta v 1. poločase" — nezáleží,
+        který tým ji dostane. Počítají se i vlastní góly a druhá žlutá karta (= červená), ne jen "čisté" góly a
+        první žluté karty. "Ø minuta 1. karty" je průměrná minuta, kdy padla první karta v zápase (opět
+        za oba týmy).</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Zápasy</h3>
+      <p>Klikací seznam všech zápasů <strong>vybrané sezóny</strong> — kolečko V/R/P (výhra/remíza/prohra),
+        soupeř, skóre, datum. Kliknutím se dostaneš na detail zápasu.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Posledních N zápasů</h3>
+      <p>Samostatná sekce <strong>nezávislá na vybrané sezóně</strong> nahoře. Zadáš počet zápasů (a volitelně
+        jestli jen domácí nebo jen venkovní) a appka spojí obě dostupné sezóny do jednoho okna, seřadí zápasy
+        od nejnovějšího a vezme jich zadaný počet. Pokud je k dispozici méně zápasů, než jsi zadal (např. týmy
+        mají dohromady jen ~65-70 odehraných zápasů za obě sezóny, u filtru na domácí/venkovní ještě méně), appka
+        to napíše a zobrazí všechny, co má. Dlaždice průměrů/časování pod seznamem se počítají jen z téhle
+        vyfiltrované sady, ne za celou sezónu.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Kádr a export</h3>
+      <p>Kompletní soupiska podle postu (Brankáři/Obránci/Záložníci/Útočníci) se sezónními statistikami
+        každého hráče. Tlačítko "Stáhnout jako Excel (CSV)" u kádru i u zápasů stáhne tabulku s daty — u zápasů
+        obsahuje CSV víc sloupců než web (rohy, žluté/červené zvlášť, karta/gól v 1. poločase, minuta první
+        karty, a totéž zvlášť za 1. a 2. poločas), aby šlo v Excelu počítat vlastní filtry a průměry.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Historie sezón</h3>
+      <p>Umístění a body týmu v předchozích ročnících, s odkazem na zápasy dané sezóny.</p>
+    </div>
+
+    <div class="card" id="zapas">
+      <h2>Stránka Zápas</h2>
+      <p>Otevře se kliknutím na konkrétní zápas.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Odehraný zápas</h3>
+      <p>Skóre s poločasem, klíčové statistiky (rohy, držení míče, fauly, střely, karty — porovnání obou týmů),
+        statistiky podle poločasu (zvlášť 1. a 2. poločas), průběh zápasu (góly a karty s minutou a jménem
+        hráče — včetně vlastních gólů a druhé žluté), sestavy obou týmů jako tabulky podle postu (a export CSV
+        s ještě detailnějšími statistikami hráčů — klíčové přihrávky, vytvořené/zahozené šance, souboje...) a
+        posledních 5 vzájemných zápasů obou týmů.</p>
+
+      <h3 style="margin-top:20px;font-size:15px;">Nadcházející zápas — Odhad pro tento zápas</h3>
+      <p>Jednoduchý statistický odhad, ne skutečná predikce ani kurz. Základ: sezónní průměry obou týmů
+        za obě dostupné sezóny dohromady (víc zápasů = stabilnější odhad).</p>
+      <p><strong>Dvě různé metody podle statistiky</strong> — u faulů a karet se používá Poissonovo rozdělení
+        (klasický model pro počty jevů za časovou jednotku), u rohů a střel na branku přesnější Bayesovský
+        model (Gamma-Poisson): reálná data ukázala, že rohy a střely mají větší rozptyl, než Poisson počítá,
+        takže by u nich čisté Poissonovo rozdělení bylo zbytečně "sebejisté". Který řádek používá který model,
+        je vidět po najetí myší na název řádku.</p>
+      <p><strong>Dvě různé časová okna</strong> — tabulka nahoře ("Za celý zápas") ukazuje pravděpodobnost
+        pro celkový počet za celých 90+ minut. Pod ní je samostatná, oddělená otázka ("Jiná otázka: padne
+        karta v 1. poločase?") — jestli padne <strong>alespoň jedna</strong> karta (kterýkoliv tým) už v prvním
+        poločase. Tohle dvě spolu nesouvisí — je to schválně vizuálně oddělené, aby nevznikl dojem, že jde
+        o tutéž otázku jen jinak vyjádřenou.</p>
+    </div>
+
+    <div class="card" id="sezony">
+      <h2>Stránka Sezóny</h2>
+      <p>V postranním menu. Ligové chipy nahoře přepínají mezi všemi pěti ligami, sezónní chipy pod nimi mezi
+        ročníky vybrané ligy. Ukazuje tabulku (s barevně odlišenou špičkou a sestupovou zónou) a přehled
+        10 nejlepších střelců sezóny.</p>
+    </div>
+
+    <div class="card" id="obecne">
+      <h2>Obecné poznámky a omezení</h2>
+      <p><strong>Nápovědy po najetí myší</strong> — všechny zkratky ve sloupcích tabulek (Z, V, R, P, ŽK, ČK...)
+        a řádky, kde je potřeba vysvětlit metodiku, mají po najetí myší žlutou bublinu s vysvětlením.</p>
+      <p><strong>Kolik historie je k dispozici</strong> — Sportmonks na tomto tarifu dává jen 2 dokončené sezóny
+        (aktuální ročník je vidět jen průběžně, jak se odehrává). To je strop i pro "Posledních N zápasů" —
+        víc než zhruba 65-70 zápasů na tým reálně není k mání.</p>
+      <p><strong>Data se ukazují jen tam, kde jsou ověřená</strong> — pokud appka nemá jistotu, že daný typ
+        statistiky Sportmonks pro danou ligu skutečně posílá, radši ho vynechá, než aby hádala.</p>
+    </div>
+  `;
+  return shell("help", body);
+}
+
 const MATCH_PREDICTION_MARKETS = [
   {
     label: "Rohy",
@@ -1916,6 +2030,11 @@ export default {
       if (!isAuthed(request, env)) return redirectTo("/");
       const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
       return handleSeasonPage(seasonMatch[1] ? Number(seasonMatch[1]) : null, leagueId, env);
+    }
+
+    if (path === "/help" && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      return htmlResponse(renderHelpPage());
     }
 
     if (path === "/download.csv" && request.method === "POST") {
