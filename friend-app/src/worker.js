@@ -1528,39 +1528,89 @@ function renderHelpPage() {
         vždy jen po zadání PINu a konkrétní akci.</p>
 
       <div class="overflow-x">
-        <pre class="mono" style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:12px;line-height:1.7;white-space:pre;">PIN (POST /) → cookie session (24h)
-  │
-  ▼
-Výběr týmu (GET/POST /team)
-  ├─ leagues/{id}?include=currentseason        (5×, jedna liga = jeden dotaz)
-  └─ teams/seasons/{seasonId}                  (5×, seznam týmů dané ligy)
-  │
-  ▼
-Stránka Tým (GET /team/:id)
-  ├─ teams/{id}?include=venue
-  ├─ leagues/{id}?include=seasons
-  ├─ fixtures/between/{start}/{end}/{teamId}?include=participants;scores;
-  │     statistics.type;events.type;referees.referee;referees.type;
-  │     periods.statistics.type                (vybraná sezóna)
-  ├─ squads/teams/{teamId}?include=player.statistics.details.type;position
-  ├─ standings/seasons/{id}                     (za každou DOKONČENOU sezónu)
-  └─ fixtures/between/{start}/{end}/{teamId}     (znovu, širší okno — jen
-                                                   když je zadané "Posledních N zápasů")
-  │
-  ▼ (klik na zápas)
-Stránka Zápas (GET /match/:id)
-  ├─ fixtures/{id}?include=participants;scores;statistics.type;events.type;
-  │     referees.referee;referees.type;lineups.player;lineups.type;
-  │     lineups.position;lineups.details.type;formations;league;
-  │     periods.statistics.type
-  ├─ fixtures/head-to-head/{teamA}/{teamB}?include=participants;scores;league
-  └─ leagues/{id}?include=seasons + fixtures/between/... ×2  (jen u budoucích
-                                                   zápasů — Odhad pro tento zápas)
+        <svg viewBox="0 0 1040 780" xmlns="http://www.w3.org/2000/svg" role="img"
+          aria-label="Schéma architektury: prohlížeč komunikuje s Cloudflare Workerem, který podle stránky volá různé Sportmonks endpointy"
+          style="display:block;min-width:820px;">
+          <defs>
+            <marker id="arrow" viewBox="0 0 6 6" refX="5" refY="3" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M0,0 L6,3 L0,6 z" fill="var(--text-dim)" />
+            </marker>
+          </defs>
 
-Sezóny (GET /league)
-  ├─ leagues/{id}?include=seasons
-  ├─ standings/seasons/{id}?include=participant;details.type
-  └─ topscorers/seasons/{id}?include=player;participant;type</pre>
+          <rect x="400" y="20" width="240" height="56" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" stroke-width="1.5" />
+          <text x="520" y="44" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="13" fill="var(--text)">Prohlížeč (kamarád)</text>
+          <text x="520" y="62" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">mobil / počítač, žádný JS</text>
+
+          <line x1="500" y1="76" x2="500" y2="107" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
+          <line x1="540" y1="107" x2="540" y2="76" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
+          <text x="520" y="90" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--text-dim)">dotaz</text>
+          <text x="520" y="102" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--text-dim)">HTML</text>
+
+          <rect x="40" y="108" width="960" height="462" rx="14" fill="var(--surface)" stroke="var(--accent)" stroke-width="1.5" />
+          <text x="520" y="132" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12" fill="var(--accent)">Cloudflare Worker — appka (bez JS, server-rendered HTML)</text>
+
+          <rect x="70" y="148" width="900" height="38" rx="8" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="520" y="172" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="var(--text-dim)">Auth: PIN (POST /) → cookie session (24 h)</text>
+
+          <rect x="70" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="82" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Výběr týmu</text>
+          <text x="82" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET/POST /team</text>
+          <line x1="82" y1="254" x2="268" y2="254" stroke="var(--border-strong)" />
+          <text x="84" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} (5×)</text>
+          <text x="84" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/seasons/{id} (5×)</text>
+
+          <rect x="300" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="312" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Tým</text>
+          <text x="312" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /team/:id</text>
+          <line x1="312" y1="254" x2="498" y2="254" stroke="var(--border-strong)" />
+          <text x="314" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/{id}</text>
+          <text x="314" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
+          <text x="314" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/between/…</text>
+          <text x="314" y="326" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  (vybraná sezóna)</text>
+          <text x="314" y="344" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• squads/teams/{id}</text>
+          <text x="314" y="362" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• standings/seasons/{id}</text>
+          <text x="314" y="380" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/between/…</text>
+          <text x="314" y="398" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  (Posledních N zápasů)</text>
+
+          <rect x="530" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="542" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Zápas</text>
+          <text x="542" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /match/:id</text>
+          <line x1="542" y1="254" x2="728" y2="254" stroke="var(--border-strong)" />
+          <text x="544" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/{id}</text>
+          <text x="544" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/head-to-head/…</text>
+          <text x="544" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} +</text>
+          <text x="544" y="326" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  fixtures/between/… (×2)</text>
+          <text x="544" y="344" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">  jen u budoucích zápasů</text>
+
+          <rect x="760" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="772" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Sezóny</text>
+          <text x="772" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /league</text>
+          <line x1="772" y1="254" x2="958" y2="254" stroke="var(--border-strong)" />
+          <text x="774" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
+          <text x="774" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• standings/seasons/{id}</text>
+          <text x="774" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• topscorers/seasons/{id}</text>
+
+          <line x1="175" y1="534" x2="175" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="405" y1="534" x2="405" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="635" y1="534" x2="635" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="865" y1="534" x2="865" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="175" y1="566" x2="865" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+
+          <line x1="500" y1="566" x2="500" y2="649" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
+          <line x1="540" y1="649" x2="540" y2="566" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
+          <text x="520" y="600" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--text-dim)">dotaz</text>
+          <text x="520" y="616" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8.5" fill="var(--text-dim)">data</text>
+
+          <rect x="400" y="650" width="240" height="56" rx="10" fill="var(--surface2)" stroke="var(--accent2)" stroke-width="1.5" />
+          <text x="520" y="674" text-anchor="middle" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="13" fill="var(--text)">Sportmonks API</text>
+          <text x="520" y="692" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">v3/football (5 lig, 2 sezóny)</text>
+
+          <rect x="180" y="726" width="14" height="14" rx="3" fill="var(--surface2)" stroke="var(--accent)" stroke-width="1.5" />
+          <text x="200" y="737" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">appka (Worker)</text>
+          <rect x="360" y="726" width="14" height="14" rx="3" fill="var(--surface2)" stroke="var(--accent2)" stroke-width="1.5" />
+          <text x="380" y="737" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">externí systém (Sportmonks)</text>
+          <text x="640" y="737" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">→ požadavek     ← odpověď</text>
+        </svg>
       </div>
 
       <h3 style="margin-top:20px;font-size:15px;">Výběr týmu</h3>
