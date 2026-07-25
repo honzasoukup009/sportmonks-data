@@ -1809,6 +1809,10 @@ function renderHelpPage() {
           </tbody>
         </table>
       </div>
+      <p class="hint" style="margin-top:8px;">Znak klubu (pole <span class="mono">image_path</span>) je přímý odkaz na
+        Sportmonks CDN (<span class="mono">cdn.sportmonks.com</span>, veřejné, bez tokenu) — appka obrázek nikam
+        nestahuje ani neukládá, jen ho vloží jako <span class="mono">&lt;img src&gt;</span>. Když by u nějakého
+        týmu chybělo, dlaždice spadne zpátky na barevný medailonek s iniciálami.</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Stránka Tým</h3>
       <div class="overflow-x">
