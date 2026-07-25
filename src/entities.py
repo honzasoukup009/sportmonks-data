@@ -54,6 +54,10 @@ ENTITY_ENDPOINTS = {
         "path": "fixtures/{id}",
         "include": None,
     },
+    "season-teams": {
+        "path": "teams/seasons/{id}",
+        "include": None,
+    },
     "league-fixtures": {
         # --id = league id. All matches for a league within the date window
         # (max 100 days per request; the client still paginates within that

@@ -21,6 +21,7 @@ on:
           - league-seasons
           - league-search
           - league-fixtures
+          - season-teams
           - fixture
       id:
         description: "Entity ID, or a name/query for *-search entities"
