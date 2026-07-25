@@ -1,6 +1,6 @@
 const SPORTMONKS_BASE = "https://api.sportmonks.com/v3/football";
 
-// Leagues offered in the dropdown, one <select> per league on the team picker.
+// Leagues offered on the team picker, one badge-grid section per league.
 // IDs confirmed live via /leagues/search/{name} + a leagues/{id}?include=seasons
 // data-access check against the actual subscription (Starter/Advanced plan).
 const LEAGUES = [
@@ -1655,6 +1655,14 @@ function renderHelpPage() {
         to napíše a zobrazí všechny, co má. Dlaždice průměrů/časování pod seznamem se počítají jen z téhle
         vyfiltrované sady, ne za celou sezónu.</p>
 
+      <h3 style="margin-top:20px;font-size:15px;">Rozložení statistik</h3>
+      <p>Zkušební, samostatná stránka dostupná přes tlačítko "Zobrazit rozložení statistik" u "Posledních
+        N zápasů" — stejný výběr (tým, doma/venku, počet zápasů), ale místo jednoho průměru ukáže rozdělení
+        do pásem: kolik % vybraných zápasů spadá do jakého rozsahu hodnot. Pásma se počítají dynamicky
+        z rozsahu skutečně naměřených hodnot (ne z pevných hranic), takže se liší tým od týmu i liga od ligy.
+        Pokrývá rohy/góly/žluté karty (zvlášť za 1. a 2. poločas), fauly, ofsajdy (vlastní i soupeřovy),
+        centry, střely, střely na branku a jestli padl gól v prvních/posledních 15 minutách.</p>
+
       <h3 style="margin-top:20px;font-size:15px;">Kádr a export</h3>
       <p>Kompletní soupiska podle postu (Brankáři/Obránci/Záložníci/Útočníci) se sezónními statistikami
         každého hráče. Tlačítko "Stáhnout jako Excel (CSV)" u kádru i u zápasů stáhne tabulku s daty — u zápasů
@@ -1748,6 +1756,7 @@ function renderHelpPage() {
           <text x="314" y="362" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• standings/seasons/{id}</text>
           <text x="314" y="380" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/between/…</text>
           <text x="314" y="398" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  (Posledních N zápasů)</text>
+          <text x="314" y="416" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">→ i pro GET /team/:id/rozlozeni</text>
 
           <rect x="530" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
           <text x="542" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Zápas</text>
@@ -1796,7 +1805,7 @@ function renderHelpPage() {
           <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
           <tbody>
             <tr><td class="mono">leagues/{id}?include=currentseason</td><td>ID aktuální sezóny dané ligy</td><td>Zjištění, kterou sezónu stáhnout pro seznam týmů</td></tr>
-            <tr><td class="mono">teams/seasons/{seasonId}</td><td>Seznam týmů v dané sezóně</td><td>Položky v roletce dané ligy</td></tr>
+            <tr><td class="mono">teams/seasons/{seasonId}</td><td>Seznam týmů v dané sezóně (jméno + znak klubu)</td><td>Klikací dlaždice (mřížka) dané ligy</td></tr>
           </tbody>
         </table>
       </div>
@@ -1811,7 +1820,7 @@ function renderHelpPage() {
             <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy týmu ve vybrané sezóně se statistikami, událostmi a poločasy</td><td>Souhrn sezóny, Průměry a časování, Zápasy, CSV export</td></tr>
             <tr><td class="mono">squads/teams/{id}</td><td>Soupiska se sezónními statistikami hráčů</td><td>Kádr + CSV export</td></tr>
             <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka dané sezóny (za každou dokončenou)</td><td>Historie sezón</td></tr>
-            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Posledních N zápasů (jen když je zadané)</td></tr>
+            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Posledních N zápasů a Rozložení statistik (jen když je zadán počet)</td></tr>
           </tbody>
         </table>
       </div>
