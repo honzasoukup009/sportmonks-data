@@ -58,6 +58,17 @@ const PAGE_STYLE = `
   .match-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
   .match-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; font-size: 11px; text-decoration: none; color: inherit; }
   .match-card:hover { border-color: var(--border-strong); }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
+  .team-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); text-align: center; }
+  .team-card:hover { border-color: var(--border-strong); }
+  .team-card .name { font-size: 12px; font-weight: 600; line-height: 1.3; }
+  .dist-block { margin-top: 20px; }
+  .dist-title { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+  .dist-row { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; }
+  .dist-label { width: 64px; flex-shrink: 0; color: var(--text-dim); }
+  .dist-track { flex: 1; height: 12px; border-radius: 4px; background: var(--surface3); overflow: hidden; }
+  .dist-fill { height: 100%; background: var(--accent); }
+  .dist-pct { width: 38px; text-align: right; flex-shrink: 0; }
   .score-header { display: flex; align-items: center; justify-content: center; gap: 40px; padding: 12px 0; }
   .score-side { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 150px; }
   .score-mid { display: flex; flex-direction: column; align-items: center; gap: 6px; }
@@ -648,6 +659,7 @@ function fixtureRow(fixture, teamId) {
   const allEvents = fixture.events || [];
   const cardEvents = allEvents.filter((e) => CARD_LABELS[e.type?.name]);
   const goalEvents = allEvents.filter((e) => GOAL_TYPE_NAMES.includes(e.type?.name));
+  const ownGoalEvents = goalEvents.filter((e) => e.participant_id === teamId);
   const firstCardMinute = cardEvents.length ? Math.min(...cardEvents.map((e) => Number(e.minute))) : "";
 
   return {
@@ -690,6 +702,18 @@ function fixtureRow(fixture, teamId) {
     shotsOnTargetH2: periodStatValue(fixture, "2nd-half", teamId, "Shots On Target") ?? "",
     offsidesH1: periodStatValue(fixture, "1st-half", teamId, "Offsides") ?? "",
     offsidesH2: periodStatValue(fixture, "2nd-half", teamId, "Offsides") ?? "",
+    offsidesOpponent: statValue(fixture, opponent?.id, "Offsides") ?? "",
+    crossesTotal: statValue(fixture, teamId, "Total Crosses") ?? "",
+    crossesH1: periodStatValue(fixture, "1st-half", teamId, "Total Crosses") ?? "",
+    crossesH2: periodStatValue(fixture, "2nd-half", teamId, "Total Crosses") ?? "",
+    // Sportmonks doesn't offer "goals" as a period-scoped statistic (confirmed
+    // live — unlike corners/fouls/cards/etc.), so these are derived from the
+    // team's own goal events (own goals included) by minute, same approach
+    // as cardFirstHalf/goalFirstHalf above.
+    goalsH1: ownGoalEvents.filter((e) => Number(e.minute) <= 45).length,
+    goalsH2: ownGoalEvents.filter((e) => Number(e.minute) > 45).length,
+    goalFirst15: fullTime ? (ownGoalEvents.some((e) => Number(e.minute) <= 15) ? "Ano" : "Ne") : "",
+    goalLast15: fullTime ? (ownGoalEvents.some((e) => Number(e.minute) >= 76) ? "Ano" : "Ne") : "",
   };
 }
 
@@ -759,6 +783,71 @@ function teamAverages(fixtureRows) {
     firstCardMinuteAvg,
   };
 }
+
+// --- Distribution/histogram view ("Rozložení statistik"): instead of a
+// single average, buckets the actual per-match values so the reader can see
+// the shape of the spread, not just the mean. Buckets are computed from the
+// observed min/max in the selected match window (not fixed thresholds) so
+// they stay sensible whether the sample is 10 matches or 70, and across
+// leagues with very different typical stat volumes.
+function numericDistribution(matches, key, maxBuckets = 5) {
+  // Number("") is 0, not NaN — filter out blank/missing values *before*
+  // coercion, or a match where this stat wasn't recorded would wrongly
+  // count as an observed "0" instead of being excluded from the sample.
+  const values = matches
+    .map((r) => r[key])
+    .filter((v) => v !== "" && v !== undefined && v !== null)
+    .map((v) => Number(v))
+    .filter((v) => Number.isFinite(v));
+  if (!values.length) return null;
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) return [{ label: `${min}`, pct: 100 }];
+
+  const bucketCount = Math.min(maxBuckets, max - min + 1);
+  const width = (max - min + 1) / bucketCount;
+  const buckets = Array.from({ length: bucketCount }, (_, i) => {
+    const lo = Math.round(min + i * width);
+    const hi = Math.max(lo, Math.round(min + (i + 1) * width) - 1);
+    return { lo, hi, count: 0 };
+  });
+  for (const v of values) {
+    const idx = Math.min(bucketCount - 1, Math.floor((v - min) / width));
+    buckets[idx].count++;
+  }
+  return buckets.map((b) => ({
+    label: b.lo === b.hi ? `${b.lo}` : `${b.lo}–${b.hi}`,
+    pct: Math.round((b.count / values.length) * 100),
+  }));
+}
+
+function booleanDistribution(matches, key) {
+  const values = matches.map((r) => r[key]).filter((v) => v === "Ano" || v === "Ne");
+  if (!values.length) return null;
+  const yes = values.filter((v) => v === "Ano").length;
+  return [
+    { label: "Ano", pct: Math.round((yes / values.length) * 100) },
+    { label: "Ne", pct: Math.round(((values.length - yes) / values.length) * 100) },
+  ];
+}
+
+const DISTRIBUTION_STATS = [
+  { label: "Rohy — 1. poločas", key: "cornersH1", type: "numeric" },
+  { label: "Rohy — 2. poločas", key: "cornersH2", type: "numeric" },
+  { label: "Góly — 1. poločas", key: "goalsH1", type: "numeric" },
+  { label: "Góly — 2. poločas", key: "goalsH2", type: "numeric" },
+  { label: "Žluté karty — 1. poločas", key: "yellowH1", type: "numeric" },
+  { label: "Žluté karty — 2. poločas", key: "yellowH2", type: "numeric" },
+  { label: "Fauly celkem", key: "fouls", type: "numeric" },
+  { label: "Gól v prvních 15 minutách", key: "goalFirst15", type: "boolean" },
+  { label: "Gól v posledních 15 minutách", key: "goalLast15", type: "boolean" },
+  { label: "Ofsajdy celkem", key: "offsides", type: "numeric" },
+  { label: "Ofsajdy soupeře", key: "offsidesOpponent", type: "numeric" },
+  { label: "Centry celkem", key: "crossesTotal", type: "numeric" },
+  { label: "Střely celkem", key: "shots", type: "numeric" },
+  { label: "Střely na branku", key: "shotsOnTarget", type: "numeric" },
+];
 
 // --- Simple Poisson-based over/under probability estimate for match totals
 // (corners/cards/fouls/shots), used to preview upcoming fixtures. A season
@@ -883,14 +972,16 @@ function renderTeamPicker({ leagueGroups, error } = {}) {
       (group) => `
         <div class="card">
           <h2>${escapeHtml(group.label)}</h2>
-          <form class="plain" method="POST" action="/team">
-            <input type="hidden" name="league_id" value="${group.id}">
-            <select name="team_id" required>
-              <option value="">-- vyber tým --</option>
-              ${group.teams.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("")}
-            </select>
-            <button type="submit">Zobrazit</button>
-          </form>
+          <div class="team-grid">
+            ${group.teams
+              .map(
+                (t) => `<a class="team-card" href="/team/${t.id}?league=${group.id}">
+                  ${badge(t, 48)}
+                  <div class="name">${escapeHtml(t.name)}</div>
+                </a>`
+              )
+              .join("")}
+          </div>
         </div>`
     )
     .join("");
@@ -1000,6 +1091,10 @@ function renderRecentMatchesSection(teamId, leagueId, selectedSeasonId, recent, 
         </select>
         <button type="submit">Zobrazit</button>
       </form>
+      <a class="btn secondary" style="margin-top:12px;"
+        href="/team/${teamId}/rozlozeni?league=${leagueId}${recentCount ? `&count=${recentCount}` : ""}${recentVenue ? `&venue=${recentVenue}` : ""}">
+        Zobrazit rozložení statistik
+      </a>
       ${results}
     </div>
   `;
@@ -1161,6 +1256,76 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
     }
 
     <a class="btn secondary" href="/team" style="margin-top:20px;">Vybrat jiný tým</a>
+  `;
+  return shell("team", body);
+}
+
+function renderDistribution(dist) {
+  return dist
+    .map(
+      (b) => `<div class="dist-row">
+        <div class="dist-label mono">${escapeHtml(b.label)}</div>
+        <div class="dist-track"><div class="dist-fill" style="width:${b.pct}%;"></div></div>
+        <div class="dist-pct mono">${b.pct} %</div>
+      </div>`
+    )
+    .join("");
+}
+
+function renderDistributionPage(team, leagueId, recent, recentCount, recentVenue) {
+  const venueLabel = recentVenue === "home" ? " (jen domácí zápasy)" : recentVenue === "away" ? " (jen venkovní zápasy)" : "";
+
+  let results = "";
+  if (recent && recent.matches.length) {
+    const blocks = DISTRIBUTION_STATS.map(({ label, key, type }) => {
+      const dist = type === "boolean" ? booleanDistribution(recent.matches, key) : numericDistribution(recent.matches, key);
+      if (!dist) return "";
+      return `
+        <div class="dist-block">
+          <div class="dist-title">${escapeHtml(label)}</div>
+          ${renderDistribution(dist)}
+        </div>
+      `;
+    }).join("");
+
+    const note =
+      recent.matches.length < recentCount
+        ? `K dispozici${venueLabel} je jen ${recent.available} zápasů napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}) — zobrazeny všechny.`
+        : `Rozložení počítáno z posledních ${recent.matches.length} zápasů${venueLabel} napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}).`;
+
+    results = `<p class="hint" style="margin-top:12px;">${note}</p>${blocks}`;
+  } else if (recent) {
+    results = `<p class="hint" style="margin-top:12px;">Žádné odehrané zápasy${venueLabel} nejsou k dispozici.</p>`;
+  }
+
+  const body = `
+    <div style="display:flex;align-items:center;gap:20px;">
+      ${badge(team, 60)}
+      <div>
+        <h1>Rozložení statistik — ${escapeHtml(team.name)}</h1>
+        <div class="lead">Zkušební pohled: rozdělení posledních zápasů do pásem místo jediného průměru.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="hint">Pásma se počítají dynamicky z rozsahu hodnot v aktuálně vybraných zápasech (ne z pevných
+        hranic) — mění se podle týmu, ligy a počtu zápasů.</p>
+      <form class="plain" method="GET" action="/team/${team.id}/rozlozeni">
+        <input type="hidden" name="league" value="${leagueId}">
+        <label for="dist_count">Počet zápasů</label>
+        <input type="number" id="dist_count" name="count" min="1" max="500" value="${recentCount ?? ""}" required>
+        <label for="dist_venue">Hřiště</label>
+        <select id="dist_venue" name="venue">
+          <option value=""${!recentVenue ? " selected" : ""}>Vše (doma i venku)</option>
+          <option value="home"${recentVenue === "home" ? " selected" : ""}>Jen doma</option>
+          <option value="away"${recentVenue === "away" ? " selected" : ""}>Jen venku</option>
+        </select>
+        <button type="submit">Zobrazit</button>
+      </form>
+      ${results}
+    </div>
+
+    <a class="btn secondary" href="/team/${team.id}?league=${leagueId}" style="margin-top:20px;">Zpět na tým</a>
   `;
   return shell("team", body);
 }
@@ -1449,8 +1614,8 @@ function renderHelpPage() {
 
     <div class="card" id="tym">
       <h2>Stránka Tým</h2>
-      <p>Po zadání PINu vybereš tým z jedné z pěti ligových roletek (Chance Liga, Premier League, Bundesliga,
-        Serie A, La Liga) — každá liga má vlastní roletku, ne všechny týmy v jedné.</p>
+      <p>Po zadání PINu klikneš na tým v mřížce (Chance Liga, Premier League, Bundesliga, Serie A, La Liga) —
+        každá liga má vlastní skupinu týmů, ne všechny týmy v jedné.</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Sezónní chipy a přehled</h3>
       <p>Chipy nahoře přepínají sezónu (aktuální i starší ročníky). Karta "Sezóna..." ukazuje základní souhrn
@@ -1554,7 +1719,7 @@ function renderHelpPage() {
 
           <rect x="70" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
           <text x="82" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Výběr týmu</text>
-          <text x="82" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET/POST /team</text>
+          <text x="82" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /team</text>
           <line x1="82" y1="254" x2="268" y2="254" stroke="var(--border-strong)" />
           <text x="84" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} (5×)</text>
           <text x="84" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/seasons/{id} (5×)</text>
@@ -1960,6 +2125,15 @@ async function teamSeasonHistory(teamId, finishedSeasons, token) {
   return history;
 }
 
+// Shared "count"/"venue" query-param parsing for /team/:id and /team/:id/rozlozeni.
+function parseRecentParams(url) {
+  const countRaw = Number(url.searchParams.get("count"));
+  const recentCount = countRaw > 0 ? Math.min(Math.floor(countRaw), 500) : null;
+  const venueRaw = url.searchParams.get("venue");
+  const recentVenue = venueRaw === "home" || venueRaw === "away" ? venueRaw : null;
+  return { recentCount, recentVenue };
+}
+
 // "Last N matches" window (optionally home/away only), pooled across every
 // finished season regardless of the season chip selected above — reuses the
 // same finishedSeasonsRange + fetchFixtures pooling as the match prediction,
@@ -2018,6 +2192,21 @@ async function handleTeamPage(teamId, seasonId, leagueId, env, recentCount, rece
         recentVenue
       )
     );
+  } catch (err) {
+    return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
+  }
+}
+
+async function handleDistributionPage(teamId, leagueId, recentCount, recentVenue, env) {
+  try {
+    const token = env.SPORTMONKS_API_TOKEN;
+    const team = await fetchTeam(teamId, token);
+    const seasons = await fetchLeagueSeasons(leagueId, token);
+    const recent = recentCount
+      ? await fetchRecentMatches(teamId, seasons, recentCount, recentVenue, token).catch(() => null)
+      : null;
+
+    return htmlResponse(renderDistributionPage(team || { id: teamId, name: "Tým" }, leagueId, recent, recentCount, recentVenue));
   } catch (err) {
     return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
   }
@@ -2137,28 +2326,22 @@ export default {
         return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
       }
     }
-    if (path === "/team" && request.method === "POST") {
-      if (!isAuthed(request, env)) return redirectTo("/");
-      const form = await request.formData();
-      const teamId = form.get("team_id");
-      if (!teamId) {
-        const leagueGroups = await fetchLeagueGroups(env.SPORTMONKS_API_TOKEN).catch(() => []);
-        return htmlResponse(renderTeamPicker({ leagueGroups, error: "Vyber prosím tým ze seznamu." }));
-      }
-      const leagueId = Number(form.get("league_id")) || LEAGUES[0].id;
-      return redirectTo(`/team/${teamId}?league=${leagueId}`);
-    }
 
     const teamMatch = path.match(/^\/team\/(\d+)$/);
     if (teamMatch && request.method === "GET") {
       if (!isAuthed(request, env)) return redirectTo("/");
       const seasonId = url.searchParams.get("season");
       const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
-      const countRaw = Number(url.searchParams.get("count"));
-      const recentCount = countRaw > 0 ? Math.min(Math.floor(countRaw), 500) : null;
-      const venueRaw = url.searchParams.get("venue");
-      const recentVenue = venueRaw === "home" || venueRaw === "away" ? venueRaw : null;
+      const { recentCount, recentVenue } = parseRecentParams(url);
       return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, leagueId, env, recentCount, recentVenue);
+    }
+
+    const distributionMatch = path.match(/^\/team\/(\d+)\/rozlozeni$/);
+    if (distributionMatch && request.method === "GET") {
+      if (!isAuthed(request, env)) return redirectTo("/");
+      const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
+      const { recentCount, recentVenue } = parseRecentParams(url);
+      return handleDistributionPage(Number(distributionMatch[1]), leagueId, recentCount, recentVenue, env);
     }
 
     const matchMatch = path.match(/^\/match\/(\d+)$/);
