@@ -258,7 +258,9 @@ async function fetchLeagueGroups(token) {
         return {
           id: config.id,
           label: config.label,
-          teams: teams.map((t) => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name)),
+          teams: teams
+            .map((t) => ({ id: t.id, name: t.name, image_path: t.image_path }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
         };
       } catch {
         // Skip a league that failed to resolve rather than failing the whole page.
@@ -408,6 +410,16 @@ function badgeCode(team) {
 
 function badge(team, size = 40) {
   return `<div class="badge" style="width:${size}px;height:${size}px;background:${teamColor(team.id)};font-size:${Math.round(size * 0.34)}px;">${escapeHtml(badgeCode(team))}</div>`;
+}
+
+// Real club crest when Sportmonks gives us one (teams/seasons/{id} always
+// has it live-checked), falling back to the colored initials badge — some
+// endpoints/leagues may not carry image_path.
+function crest(team, size = 40) {
+  if (team.image_path) {
+    return `<img src="${escapeHtml(team.image_path)}" alt="${escapeHtml(team.name)}" width="${size}" height="${size}" style="object-fit:contain;" loading="lazy">`;
+  }
+  return badge(team, size);
 }
 
 function scoreAt(scores, description) {
@@ -976,7 +988,7 @@ function renderTeamPicker({ leagueGroups, error } = {}) {
             ${group.teams
               .map(
                 (t) => `<a class="team-card" href="/team/${t.id}?league=${group.id}">
-                  ${badge(t, 48)}
+                  ${crest(t, 48)}
                   <div class="name">${escapeHtml(t.name)}</div>
                 </a>`
               )
