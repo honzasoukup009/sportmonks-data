@@ -1809,17 +1809,20 @@ function renderHelpPage() {
           </tbody>
         </table>
       </div>
-      <p class="hint" style="margin-top:8px;">Znak klubu (pole <span class="mono">image_path</span>) je přímý odkaz na
+      <p class="hint" style="margin-top:8px;">Znak klubu (pole <span class="mono">image_path</span>, vrací ho jak
+        <span class="mono">teams/seasons/{id}</span>, tak <span class="mono">teams/{id}</span>) je přímý odkaz na
         Sportmonks CDN (<span class="mono">cdn.sportmonks.com</span>, veřejné, bez tokenu) — appka obrázek nikam
-        nestahuje ani neukládá, jen ho vloží jako <span class="mono">&lt;img src&gt;</span>. Když by u nějakého
-        týmu chybělo, dlaždice spadne zpátky na barevný medailonek s iniciálami.</p>
+        nestahuje ani neukládá, jen ho vloží jako <span class="mono">&lt;img src&gt;</span> (funkce
+        <span class="mono">crest()</span>). Používá se v mřížce výběru týmu i v hlavičkách stránek Tým a Rozložení
+        statistik. Když by u nějakého týmu chybělo, spadne to zpátky na barevný medailonek s iniciálami
+        (funkce <span class="mono">badge()</span>).</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Stránka Tým</h3>
       <div class="overflow-x">
         <table>
           <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
           <tbody>
-            <tr><td class="mono">teams/{id}?include=venue</td><td>Název týmu, stadion</td><td>Nadpis stránky</td></tr>
+            <tr><td class="mono">teams/{id}?include=venue</td><td>Název týmu, stadion, znak klubu</td><td>Nadpis stránky (Tým i Rozložení statistik)</td></tr>
             <tr><td class="mono">leagues/{id}?include=seasons</td><td>Všechny sezóny ligy (i budoucí)</td><td>Sezónní chipy, pooling pro "Posledních N zápasů" a odhad zápasu</td></tr>
             <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy týmu ve vybrané sezóně se statistikami, událostmi a poločasy</td><td>Souhrn sezóny, Průměry a časování, Zápasy, CSV export</td></tr>
             <tr><td class="mono">squads/teams/{id}</td><td>Soupiska se sezónními statistikami hráčů</td><td>Kádr + CSV export</td></tr>
