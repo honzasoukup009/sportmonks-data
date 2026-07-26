@@ -367,6 +367,7 @@ function standingRow(row) {
     teamId: row.participant?.id,
     teamName: row.participant?.name || "",
     shortCode: row.participant?.short_code,
+    imagePath: row.participant?.image_path,
     points: row.points,
     played: details.played ?? "",
     won: details.won ?? "",
@@ -1568,7 +1569,7 @@ function renderSeasonPage(seasons, selectedSeason, table, topScorers, leagueId) 
     ${
       champion
         ? `<div class="champion-banner">
-            ${badge({ id: champion.teamId, name: champion.teamName, short_code: champion.shortCode }, 52)}
+            ${crest({ id: champion.teamId, name: champion.teamName, short_code: champion.shortCode, image_path: champion.imagePath }, 52)}
             <div>
               <div class="champion-label">Vede tabulku — ${escapeHtml(selectedSeason.name)}</div>
               <div style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;">${escapeHtml(champion.teamName)}</div>
@@ -1809,13 +1810,14 @@ function renderHelpPage() {
           </tbody>
         </table>
       </div>
-      <p class="hint" style="margin-top:8px;">Znak klubu (pole <span class="mono">image_path</span>, vrací ho jak
-        <span class="mono">teams/seasons/{id}</span>, tak <span class="mono">teams/{id}</span>) je přímý odkaz na
-        Sportmonks CDN (<span class="mono">cdn.sportmonks.com</span>, veřejné, bez tokenu) — appka obrázek nikam
-        nestahuje ani neukládá, jen ho vloží jako <span class="mono">&lt;img src&gt;</span> (funkce
-        <span class="mono">crest()</span>). Používá se v mřížce výběru týmu i v hlavičkách stránek Tým a Rozložení
-        statistik. Když by u nějakého týmu chybělo, spadne to zpátky na barevný medailonek s iniciálami
-        (funkce <span class="mono">badge()</span>).</p>
+      <p class="hint" style="margin-top:8px;">Znak klubu (pole <span class="mono">image_path</span>, vrací ho
+        <span class="mono">teams/seasons/{id}</span>, <span class="mono">teams/{id}</span> i
+        <span class="mono">standings/seasons/{id}</span> jako součást <span class="mono">participant</span>) je
+        přímý odkaz na Sportmonks CDN (<span class="mono">cdn.sportmonks.com</span>, veřejné, bez tokenu) — appka
+        obrázek nikam nestahuje ani neukládá, jen ho vloží jako <span class="mono">&lt;img src&gt;</span> (funkce
+        <span class="mono">crest()</span>). Používá se v mřížce výběru týmu, v hlavičkách stránek Tým a Rozložení
+        statistik a u vedoucího týmu na stránce Sezóny. Když by u nějakého týmu chybělo, spadne to zpátky na
+        barevný medailonek s iniciálami (funkce <span class="mono">badge()</span>).</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Stránka Tým</h3>
       <div class="overflow-x">
@@ -1850,7 +1852,7 @@ function renderHelpPage() {
           <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
           <tbody>
             <tr><td class="mono">leagues/{id}?include=seasons</td><td>Seznam sezón dané ligy</td><td>Sezónní chipy</td></tr>
-            <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka soutěže</td><td>Tabulka</td></tr>
+            <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka soutěže (vč. znaku klubu)</td><td>Tabulka, znak vedoucího týmu v banneru</td></tr>
             <tr><td class="mono">topscorers/seasons/{id}</td><td>Nejlepší střelci sezóny</td><td>Nejlepší střelci</td></tr>
           </tbody>
         </table>
