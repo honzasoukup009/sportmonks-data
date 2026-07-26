@@ -1182,7 +1182,7 @@ function renderTeamPage(team, fixturesRaw, fixtureRows, squad, history, seasons,
 
   const body = `
     <div style="display:flex;align-items:center;gap:20px;">
-      ${badge(team, 60)}
+      ${crest(team, 60)}
       <div>
         <h1>${escapeHtml(team.name)}</h1>
         <div class="lead">${escapeHtml(team.venue?.name || "")}</div>
@@ -1312,7 +1312,7 @@ function renderDistributionPage(team, leagueId, recent, recentCount, recentVenue
 
   const body = `
     <div style="display:flex;align-items:center;gap:20px;">
-      ${badge(team, 60)}
+      ${crest(team, 60)}
       <div>
         <h1>Rozložení statistik — ${escapeHtml(team.name)}</h1>
         <div class="lead">Zkušební pohled: rozdělení posledních zápasů do pásem místo jediného průměru.</div>
