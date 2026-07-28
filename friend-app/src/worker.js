@@ -673,6 +673,11 @@ function fixtureRow(fixture, teamId) {
   const cardEvents = allEvents.filter((e) => CARD_LABELS[e.type?.name]);
   const goalEvents = allEvents.filter((e) => GOAL_TYPE_NAMES.includes(e.type?.name));
   const ownGoalEvents = goalEvents.filter((e) => e.participant_id === teamId);
+  // A second yellow (dismissal) is still a yellow card shown, and Sportmonks'
+  // whole-match "Yellowcards" total agrees — confirmed live across 70 matches.
+  const ownYellowEvents = cardEvents.filter(
+    (e) => (e.type?.name === "Yellowcard" || e.type?.name === "Yellow/Red card") && e.participant_id === teamId
+  );
   const firstCardMinute = cardEvents.length ? Math.min(...cardEvents.map((e) => Number(e.minute))) : "";
 
   return {
@@ -705,8 +710,14 @@ function fixtureRow(fixture, teamId) {
     // Per-half split (own team), from Sportmonks' period-scoped statistics.
     cornersH1: periodStatValue(fixture, "1st-half", teamId, "Corners") ?? "",
     cornersH2: periodStatValue(fixture, "2nd-half", teamId, "Corners") ?? "",
-    yellowH1: periodStatValue(fixture, "1st-half", teamId, "Yellowcards") ?? "",
-    yellowH2: periodStatValue(fixture, "2nd-half", teamId, "Yellowcards") ?? "",
+    // Yellow cards by half are derived from events, not periodStatValue — the
+    // period-scoped "Yellowcards" stat disagreed with the trusted whole-match
+    // total on ~29% of a 70-match sample (off by up to 4), while counting
+    // events directly only disagreed on ~10% (off by at most 1). Corners/
+    // fouls/offsides/crosses/shots don't have an event log to fall back on,
+    // so those still use the less-reliable period stat for now.
+    yellowH1: ownYellowEvents.filter((e) => Number(e.minute) <= 45).length,
+    yellowH2: ownYellowEvents.filter((e) => Number(e.minute) > 45).length,
     redH1: periodStatValue(fixture, "1st-half", teamId, "Redcards") ?? "",
     redH2: periodStatValue(fixture, "2nd-half", teamId, "Redcards") ?? "",
     foulsH1: periodStatValue(fixture, "1st-half", teamId, "Fouls") ?? "",
@@ -1663,6 +1674,12 @@ function renderHelpPage() {
         z rozsahu skutečně naměřených hodnot (ne z pevných hranic), takže se liší tým od týmu i liga od ligy.
         Pokrývá rohy/góly/žluté karty (zvlášť za 1. a 2. poločas), fauly, ofsajdy (vlastní i soupeřovy),
         centry, střely, střely na branku a jestli padl gól v prvních/posledních 15 minutách.</p>
+      <p class="hint" style="margin-top:8px;">Žluté karty po poločasech se počítají z jednotlivých událostí
+        zápasu (viz níže) — spolehlivější než poločasová statistika od Sportmonks. Rohy, fauly, ofsajdy, centry
+        a střely na branku po poločasech ale pořád vycházejí jen z poločasové statistiky Sportmonks, která se
+        u části zápasů neshoduje s celkovým součtem za zápas (ověřeno: rohy ~40 %, fauly ~51 %, centry ~51 %,
+        ofsajdy ~18 % zápasů, odchylka klidně o desítky) — u těchhle statistik proto berte poločasové rozložení
+        jako orientační, ne přesné.</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Kádr a export</h3>
       <p>Kompletní soupiska podle postu (Brankáři/Obránci/Záložníci/Útočníci) se sezónními statistikami
@@ -1684,6 +1701,12 @@ function renderHelpPage() {
         hráče — včetně vlastních gólů a druhé žluté), sestavy obou týmů jako tabulky podle postu (a export CSV
         s ještě detailnějšími statistikami hráčů — klíčové přihrávky, vytvořené/zahozené šance, souboje...) a
         posledních 5 vzájemných zápasů obou týmů.</p>
+      <p class="hint" style="margin-top:8px;">Karty ve "statistikách podle poločasu" (a všude jinde, kde appka
+        počítá poločasové rozdělení karet) se počítají z jednotlivých událostí zápasu, ne z poločasové statistiky
+        od Sportmonks — ta se totiž ověřeně (na vzorku 70 zápasů) v části případů neshodovala s celkovým počtem
+        za zápas. Rohy, fauly, ofsajdy, centry a střely na branku po poločasech tuhle záchrannou síť nemají
+        (Sportmonks je jako jednotlivé události neeviduje) — jejich poločasové rozdělení proto může být u menší
+        části zápasů nepřesné, protože takhle to posílá přímo Sportmonks.</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Nadcházející zápas — Odhad pro tento zápas</h3>
       <p>Jednoduchý statistický odhad, ne skutečná predikce ani kurz. Základ: sezónní průměry obou týmů
@@ -1868,6 +1891,10 @@ function renderHelpPage() {
         víc než zhruba 65-70 zápasů na tým reálně není k mání.</p>
       <p><strong>Data se ukazují jen tam, kde jsou ověřená</strong> — pokud appka nemá jistotu, že daný typ
         statistiky Sportmonks pro danou ligu skutečně posílá, radši ho vynechá, než aby hádala.</p>
+      <p><strong>Poločasové rozdělení může být nepřesné</strong> — u rohů, faulů, ofsajdů, centrů a střel na
+        branku se poločasový součet u části zápasů neshoduje s celkovým číslem za zápas, protože takhle to
+        posílá přímo Sportmonks (viz Stránka Zápas). Karty tenhle problém nemají — počítají se jinak, z
+        jednotlivých událostí zápasu.</p>
     </div>
   `;
   return shell("help", body);
