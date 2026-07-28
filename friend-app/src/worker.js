@@ -1641,9 +1641,9 @@ function renderHelpPage() {
       <p>Po zadání PINu klikneš na tým v mřížce (Chance Liga, Premier League, Bundesliga, Serie A, La Liga) —
         každá liga má vlastní skupinu týmů, ne všechny týmy v jedné.</p>
 
-      <h3 style="margin-top:20px;font-size:15px;">Sezónní chipy a přehled</h3>
-      <p>Chipy nahoře přepínají sezónu (aktuální i starší ročníky). Karta "Sezóna..." ukazuje základní souhrn
-        za vybranou sezónu: počet zápasů, V-R-P, body, skóre.</p>
+      <h3 style="margin-top:20px;font-size:15px;">Přepínání sezóny a přehled</h3>
+      <p>Zaoblená tlačítka nahoře (např. "2025/2026", "2024/2025"...) přepínají sezónu — aktuální i starší
+        ročníky. Karta "Sezóna..." ukazuje základní souhrn za vybranou sezónu: počet zápasů, V-R-P, body, skóre.</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Průměry a časování</h3>
       <p>Rohy/karty/fauly/střely na zápas jsou průměr <strong>za vybraný tým</strong> (jeho vlastní čísla).
@@ -1725,9 +1725,9 @@ function renderHelpPage() {
 
     <div class="card" id="sezony">
       <h2>Stránka Sezóny</h2>
-      <p>V postranním menu. Ligové chipy nahoře přepínají mezi všemi pěti ligami, sezónní chipy pod nimi mezi
-        ročníky vybrané ligy. Ukazuje tabulku (s barevně odlišenou špičkou a sestupovou zónou) a přehled
-        10 nejlepších střelců sezóny.</p>
+      <p>V postranním menu. Zaoblená tlačítka lig nahoře přepínají mezi všemi pěti ligami, tlačítka sezóny pod
+        nimi mezi ročníky vybrané ligy. Ukazuje tabulku (s barevně odlišenou špičkou a sestupovou zónou) a
+        přehled 10 nejlepších střelců sezóny.</p>
     </div>
 
     <div class="card" id="architektura">
