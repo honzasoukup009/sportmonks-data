@@ -10,3 +10,6 @@ node_modules/
 .dev.vars
 *.xlsx
 *.xls
+test-results/
+playwright-report/
+playwright/.cache/

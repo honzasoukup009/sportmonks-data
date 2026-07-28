@@ -1,0 +1,10 @@
+{
+  "name": "ligastat-e2e",
+  "private": true,
+  "scripts": {
+    "test": "node --env-file=.env node_modules/.bin/playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}
