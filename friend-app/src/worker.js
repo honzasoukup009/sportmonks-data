@@ -62,6 +62,8 @@ const PAGE_STYLE = `
   .team-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: var(--text); text-align: center; }
   .team-card:hover { border-color: var(--border-strong); }
   .team-card .name { font-size: 12px; font-weight: 600; line-height: 1.3; }
+  .compare-grid { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; }
+  .compare-col { flex: 1; min-width: 280px; }
   .dist-block { margin-top: 20px; }
   .dist-title { font-weight: 600; font-size: 13px; margin-bottom: 8px; }
   .dist-row { display: flex; align-items: center; gap: 8px; font-size: 11px; margin-bottom: 4px; }
@@ -114,6 +116,7 @@ function shell(activeNav, body) {
         <nav class="nav">
           <a class="navlink ${activeNav === "team" ? "active" : ""}" href="/team">Tým</a>
           <a class="navlink ${activeNav === "league" ? "active" : ""}" href="/league">Sezóny</a>
+          <a class="navlink ${activeNav === "rozlozeni" ? "active" : ""}" href="/rozlozeni">Rozložení statistik</a>
           <a class="navlink ${activeNav === "help" ? "active" : ""}" href="/help">Nápověda</a>
         </nav>
         <div class="sidebar-footer">Zdroj dat: Sportmonks API</div>
@@ -1116,7 +1119,7 @@ function renderRecentMatchesSection(teamId, leagueId, selectedSeasonId, recent, 
         <button type="submit">Zobrazit</button>
       </form>
       <a class="btn secondary" style="margin-top:12px;"
-        href="/team/${teamId}/rozlozeni?league=${leagueId}${recentCount ? `&count=${recentCount}` : ""}${recentVenue ? `&venue=${recentVenue}` : ""}">
+        href="/rozlozeni?team1=${teamId}:${leagueId}${recentCount ? `&count1=${recentCount}` : ""}${recentVenue ? `&venue1=${recentVenue}` : ""}">
         Zobrazit rozložení statistik
       </a>
       ${results}
@@ -1296,10 +1299,16 @@ function renderDistribution(dist) {
     .join("");
 }
 
-function renderDistributionPage(team, leagueId, recent, recentCount, recentVenue) {
-  const venueLabel = recentVenue === "home" ? " (jen domácí zápasy)" : recentVenue === "away" ? " (jen venkovní zápasy)" : "";
+// One team's stat-distribution report — shared between the two side-by-side
+// columns of the comparison page (1 or 2 teams).
+function renderDistributionReport(spec, side) {
+  if (!side) {
+    return `<div class="compare-col"><p class="error">Tým se nepodařilo načíst.</p></div>`;
+  }
+  const { team, recent } = side;
+  const venueLabel = spec.venue === "home" ? " (jen domácí zápasy)" : spec.venue === "away" ? " (jen venkovní zápasy)" : "";
 
-  let results = "";
+  let results;
   if (recent && recent.matches.length) {
     const blocks = DISTRIBUTION_STATS.map(({ label, key, type }) => {
       const dist = type === "boolean" ? booleanDistribution(recent.matches, key) : numericDistribution(recent.matches, key);
@@ -1313,45 +1322,99 @@ function renderDistributionPage(team, leagueId, recent, recentCount, recentVenue
     }).join("");
 
     const note =
-      recent.matches.length < recentCount
+      recent.matches.length < spec.count
         ? `K dispozici${venueLabel} je jen ${recent.available} zápasů napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}) — zobrazeny všechny.`
         : `Rozložení počítáno z posledních ${recent.matches.length} zápasů${venueLabel} napříč oběma sezónami (${escapeHtml(recent.rangeLabel)}).`;
 
     results = `<p class="hint" style="margin-top:12px;">${note}</p>${blocks}`;
   } else if (recent) {
     results = `<p class="hint" style="margin-top:12px;">Žádné odehrané zápasy${venueLabel} nejsou k dispozici.</p>`;
+  } else {
+    results = `<p class="hint" style="margin-top:12px;">Data se nepodařilo načíst.</p>`;
   }
 
-  const body = `
-    <div style="display:flex;align-items:center;gap:20px;">
-      ${crest(team, 60)}
-      <div>
-        <h1>Rozložení statistik — ${escapeHtml(team.name)}</h1>
-        <div class="lead">Zkušební pohled: rozdělení posledních zápasů do pásem místo jediného průměru.</div>
+  return `
+    <div class="compare-col">
+      <div style="display:flex;align-items:center;gap:12px;">
+        ${crest(team, 44)}
+        <h3 style="font-size:16px;margin:0;">${escapeHtml(team.name)}</h3>
       </div>
-    </div>
-
-    <div class="card">
-      <p class="hint">Pásma se počítají dynamicky z rozsahu hodnot v aktuálně vybraných zápasech (ne z pevných
-        hranic) — mění se podle týmu, ligy a počtu zápasů.</p>
-      <form class="plain" method="GET" action="/team/${team.id}/rozlozeni">
-        <input type="hidden" name="league" value="${leagueId}">
-        <label for="dist_count">Počet zápasů</label>
-        <input type="number" id="dist_count" name="count" min="1" max="500" value="${recentCount ?? ""}" required>
-        <label for="dist_venue">Hřiště</label>
-        <select id="dist_venue" name="venue">
-          <option value=""${!recentVenue ? " selected" : ""}>Vše (doma i venku)</option>
-          <option value="home"${recentVenue === "home" ? " selected" : ""}>Jen doma</option>
-          <option value="away"${recentVenue === "away" ? " selected" : ""}>Jen venku</option>
-        </select>
-        <button type="submit">Zobrazit</button>
-      </form>
       ${results}
     </div>
-
-    <a class="btn secondary" href="/team/${team.id}?league=${leagueId}" style="margin-top:20px;">Zpět na tým</a>
   `;
-  return shell("team", body);
+}
+
+function renderTeamSelect(name, leagueGroups, selectedValue) {
+  const options = leagueGroups
+    .map(
+      (group) => `<optgroup label="${escapeHtml(group.label)}">
+        ${group.teams
+          .map((t) => {
+            const value = `${t.id}:${group.id}`;
+            return `<option value="${value}"${selectedValue === value ? " selected" : ""}>${escapeHtml(t.name)}</option>`;
+          })
+          .join("")}
+      </optgroup>`
+    )
+    .join("");
+  return `<select id="${name}" name="${name}"><option value="">-- nevybráno --</option>${options}</select>`;
+}
+
+function renderVenueSelect(name, selectedVenue) {
+  return `
+    <select id="${name}" name="${name}">
+      <option value=""${!selectedVenue ? " selected" : ""}>Vše (doma i venku)</option>
+      <option value="home"${selectedVenue === "home" ? " selected" : ""}>Jen doma</option>
+      <option value="away"${selectedVenue === "away" ? " selected" : ""}>Jen venku</option>
+    </select>
+  `;
+}
+
+function renderComparisonPage(leagueGroups, spec1, spec2, side1, side2) {
+  const team1Value = spec1 ? `${spec1.teamId}:${spec1.leagueId}` : "";
+  const team2Value = spec2 ? `${spec2.teamId}:${spec2.leagueId}` : "";
+
+  const body = `
+    <h1>Rozložení statistik</h1>
+    <p class="lead">Zkušební pohled: rozdělení posledních zápasů do pásem místo jediného průměru. Vyber jeden nebo
+      dva týmy — druhý je nepovinný, hodí se pro srovnání obou stran před konkrétním zápasem (např. domácí forma
+      jednoho týmu vedle venkovní formy druhého). Pásma se počítají dynamicky z rozsahu hodnot ve vybraných
+      zápasech, ne z pevných hranic.</p>
+
+    <div class="card">
+      <form class="plain" method="GET" action="/rozlozeni">
+        <div class="compare-grid">
+          <div class="compare-col">
+            <label for="team1">Tým 1</label>
+            ${renderTeamSelect("team1", leagueGroups, team1Value)}
+            <label for="count1">Počet zápasů</label>
+            <input type="number" id="count1" name="count1" min="1" max="500" value="${spec1?.count ?? ""}">
+            <label for="venue1">Hřiště</label>
+            ${renderVenueSelect("venue1", spec1?.venue)}
+          </div>
+          <div class="compare-col">
+            <label for="team2">Tým 2 (nepovinné)</label>
+            ${renderTeamSelect("team2", leagueGroups, team2Value)}
+            <label for="count2">Počet zápasů</label>
+            <input type="number" id="count2" name="count2" min="1" max="500" value="${spec2?.count ?? ""}">
+            <label for="venue2">Hřiště</label>
+            ${renderVenueSelect("venue2", spec2?.venue)}
+          </div>
+        </div>
+        <button type="submit" style="margin-top:16px;">Zobrazit</button>
+      </form>
+    </div>
+
+    ${
+      spec1 || spec2
+        ? `<div class="compare-grid">
+            ${spec1 ? renderDistributionReport(spec1, side1) : ""}
+            ${spec2 ? renderDistributionReport(spec2, side2) : ""}
+          </div>`
+        : ""
+    }
+  `;
+  return shell("rozlozeni", body);
 }
 
 function statBarRow(fixture, homeId, awayId, typeName, label) {
@@ -1622,6 +1685,7 @@ function renderHelpPage() {
         <a href="#tym">Stránka Tým</a><br>
         <a href="#zapas">Stránka Zápas</a><br>
         <a href="#sezony">Stránka Sezóny</a><br>
+        <a href="#rozlozeni">Stránka Rozložení statistik</a><br>
         <a href="#architektura">Technický přehled: co se odkud stahuje</a><br>
         <a href="#obecne">Obecné poznámky a omezení</a>
       </p>
@@ -1665,21 +1729,8 @@ function renderHelpPage() {
         od nejnovějšího a vezme jich zadaný počet. Pokud je k dispozici méně zápasů, než jsi zadal (např. týmy
         mají dohromady jen ~65-70 odehraných zápasů za obě sezóny, u filtru na domácí/venkovní ještě méně), appka
         to napíše a zobrazí všechny, co má. Dlaždice průměrů/časování pod seznamem se počítají jen z téhle
-        vyfiltrované sady, ne za celou sezónu.</p>
-
-      <h3 style="margin-top:20px;font-size:15px;">Rozložení statistik</h3>
-      <p>Zkušební, samostatná stránka dostupná přes tlačítko "Zobrazit rozložení statistik" u "Posledních
-        N zápasů" — stejný výběr (tým, doma/venku, počet zápasů), ale místo jednoho průměru ukáže rozdělení
-        do pásem: kolik % vybraných zápasů spadá do jakého rozsahu hodnot. Pásma se počítají dynamicky
-        z rozsahu skutečně naměřených hodnot (ne z pevných hranic), takže se liší tým od týmu i liga od ligy.
-        Pokrývá rohy/góly/žluté karty (zvlášť za 1. a 2. poločas), fauly, ofsajdy (vlastní i soupeřovy),
-        centry, střely, střely na branku a jestli padl gól v prvních/posledních 15 minutách.</p>
-      <p class="hint" style="margin-top:8px;">Žluté karty po poločasech se počítají z jednotlivých událostí
-        zápasu (viz níže) — spolehlivější než poločasová statistika od Sportmonks. Rohy, fauly, ofsajdy, centry
-        a střely na branku po poločasech ale pořád vycházejí jen z poločasové statistiky Sportmonks, která se
-        u části zápasů neshoduje s celkovým součtem za zápas (ověřeno: rohy ~40 %, fauly ~51 %, centry ~51 %,
-        ofsajdy ~18 % zápasů, odchylka klidně o desítky) — u těchhle statistik proto berte poločasové rozložení
-        jako orientační, ne přesné.</p>
+        vyfiltrované sady, ne za celou sezónu. Tlačítko "Zobrazit rozložení statistik" odsud otevře stránku
+        Rozložení statistik s tímhle týmem už předvyplněným (viz níže).</p>
 
       <h3 style="margin-top:20px;font-size:15px;">Kádr a export</h3>
       <p>Kompletní soupiska podle postu (Brankáři/Obránci/Záložníci/Útočníci) se sezónními statistikami
@@ -1730,6 +1781,25 @@ function renderHelpPage() {
         přehled 10 nejlepších střelců sezóny.</p>
     </div>
 
+    <div class="card" id="rozlozeni">
+      <h2>Stránka Rozložení statistik</h2>
+      <p>Zkušební, samostatná stránka v postranním menu. Vybereš <strong>jeden nebo dva</strong> týmy (z libovolné
+        ze všech pěti lig, nezávisle na sobě) a pro každý zvlášť počet zápasů a jestli doma/venku/vše. Appka pro
+        každý vybraný tým spojí obě dostupné sezóny do jednoho okna, vezme zadaný počet nejnovějších zápasů a
+        místo jednoho průměru ukáže rozdělení do pásem: kolik % vybraných zápasů spadá do jakého rozsahu hodnot.
+        Pásma se počítají dynamicky z rozsahu skutečně naměřených hodnot (ne z pevných hranic), takže se liší
+        tým od týmu i liga od ligy. Když jsou vybraní oba dva týmy, zobrazí se vedle sebe — hodí se to na
+        přípravu na konkrétní zápas, např. domácí forma jednoho týmu vedle venkovní formy druhého. Pokrývá
+        rohy/góly/žluté karty (zvlášť za 1. a 2. poločas), fauly, ofsajdy (vlastní i soupeřovy), centry, střely,
+        střely na branku a jestli padl gól v prvních/posledních 15 minutách.</p>
+      <p class="hint" style="margin-top:8px;">Žluté karty po poločasech se počítají z jednotlivých událostí
+        zápasu (viz Stránka Zápas) — spolehlivější než poločasová statistika od Sportmonks. Rohy, fauly, ofsajdy,
+        centry a střely na branku po poločasech ale pořád vycházejí jen z poločasové statistiky Sportmonks, která
+        se u části zápasů neshoduje s celkovým součtem za zápas (ověřeno: rohy ~40 %, fauly ~51 %, centry ~51 %,
+        ofsajdy ~18 % zápasů, odchylka klidně o desítky) — u těchhle statistik proto berte poločasové rozložení
+        jako orientační, ne přesné.</p>
+    </div>
+
     <div class="card" id="architektura">
       <h2>Technický přehled: co se odkud stahuje</h2>
       <p class="hint">Tahle sekce je spíš pro vývojáře než pro běžné použití — mapuje, který dotaz na Sportmonks
@@ -1761,50 +1831,61 @@ function renderHelpPage() {
           <rect x="70" y="148" width="900" height="38" rx="8" fill="var(--surface2)" stroke="var(--border-strong)" />
           <text x="520" y="172" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="10.5" fill="var(--text-dim)">Auth: PIN (POST /) → cookie session (24 h)</text>
 
-          <rect x="70" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <rect x="70" y="204" width="168" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
           <text x="82" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Výběr týmu</text>
           <text x="82" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /team</text>
-          <line x1="82" y1="254" x2="268" y2="254" stroke="var(--border-strong)" />
+          <line x1="82" y1="254" x2="226" y2="254" stroke="var(--border-strong)" />
           <text x="84" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} (5×)</text>
-          <text x="84" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/seasons/{id} (5×)</text>
+          <text x="84" y="290" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• teams/seasons (5×)</text>
 
-          <rect x="300" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
-          <text x="312" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Tým</text>
-          <text x="312" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /team/:id</text>
-          <line x1="312" y1="254" x2="498" y2="254" stroke="var(--border-strong)" />
-          <text x="314" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/{id}</text>
-          <text x="314" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
-          <text x="314" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/between/…</text>
-          <text x="314" y="326" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  (vybraná sezóna)</text>
-          <text x="314" y="344" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• squads/teams/{id}</text>
-          <text x="314" y="362" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• standings/seasons/{id}</text>
-          <text x="314" y="380" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/between/…</text>
-          <text x="314" y="398" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  (Posledních N zápasů)</text>
-          <text x="314" y="416" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">→ i pro GET /team/:id/rozlozeni</text>
+          <rect x="253" y="204" width="168" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="265" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Tým</text>
+          <text x="265" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /team/:id</text>
+          <line x1="265" y1="254" x2="409" y2="254" stroke="var(--border-strong)" />
+          <text x="267" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• teams/{id}</text>
+          <text x="267" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
+          <text x="267" y="308" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• fixtures/between/…</text>
+          <text x="267" y="324" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">  (vybraná sezóna)</text>
+          <text x="267" y="342" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• squads/teams/{id}</text>
+          <text x="267" y="360" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• standings/seasons/{id}</text>
+          <text x="267" y="378" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• fixtures/between/…</text>
+          <text x="267" y="394" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">  (Posledních N zápasů)</text>
 
-          <rect x="530" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
-          <text x="542" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Zápas</text>
-          <text x="542" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /match/:id</text>
-          <line x1="542" y1="254" x2="728" y2="254" stroke="var(--border-strong)" />
-          <text x="544" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/{id}</text>
-          <text x="544" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/head-to-head/…</text>
-          <text x="544" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} +</text>
-          <text x="544" y="326" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">  fixtures/between/… (×2)</text>
-          <text x="544" y="344" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">  jen u budoucích zápasů</text>
+          <rect x="436" y="204" width="168" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="448" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Stránka Zápas</text>
+          <text x="448" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /match/:id</text>
+          <line x1="448" y1="254" x2="592" y2="254" stroke="var(--border-strong)" />
+          <text x="450" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• fixtures/{id}</text>
+          <text x="450" y="290" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• fixtures/head-to-head/…</text>
+          <text x="450" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} +</text>
+          <text x="450" y="326" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">  fixtures/between/… (×2)</text>
+          <text x="450" y="344" font-family="'JetBrains Mono',monospace" font-size="9" fill="var(--text-faint)">  jen u budoucích zápasů</text>
 
-          <rect x="760" y="204" width="210" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
-          <text x="772" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Sezóny</text>
-          <text x="772" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /league</text>
-          <line x1="772" y1="254" x2="958" y2="254" stroke="var(--border-strong)" />
-          <text x="774" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
-          <text x="774" y="290" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• standings/seasons/{id}</text>
-          <text x="774" y="308" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• topscorers/seasons/{id}</text>
+          <rect x="619" y="204" width="168" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="631" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Sezóny</text>
+          <text x="631" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /league</text>
+          <line x1="631" y1="254" x2="775" y2="254" stroke="var(--border-strong)" />
+          <text x="633" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id}</text>
+          <text x="633" y="290" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• standings/seasons/{id}</text>
+          <text x="633" y="308" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• topscorers/seasons/{id}</text>
 
-          <line x1="175" y1="534" x2="175" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
-          <line x1="405" y1="534" x2="405" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
-          <line x1="635" y1="534" x2="635" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
-          <line x1="865" y1="534" x2="865" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
-          <line x1="175" y1="566" x2="865" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <rect x="802" y="204" width="168" height="330" rx="10" fill="var(--surface2)" stroke="var(--border-strong)" />
+          <text x="814" y="228" font-family="'Space Grotesk',sans-serif" font-weight="700" font-size="12.5" fill="var(--text)">Rozložení statistik</text>
+          <text x="814" y="244" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-faint)">GET /rozlozeni</text>
+          <line x1="814" y1="254" x2="958" y2="254" stroke="var(--border-strong)" />
+          <text x="816" y="272" font-family="'JetBrains Mono',monospace" font-size="10" fill="var(--text-dim)">• leagues/{id} (5×) +</text>
+          <text x="816" y="290" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">  teams/seasons (5×)</text>
+          <text x="816" y="308" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• teams/{id} (za tým)</text>
+          <text x="816" y="326" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• leagues/{id} (za tým)</text>
+          <text x="816" y="344" font-family="'JetBrains Mono',monospace" font-size="9.5" fill="var(--text-dim)">• fixtures/between/…</text>
+          <text x="816" y="360" font-family="'JetBrains Mono',monospace" font-size="9" fill="var(--text-faint)">  (za tým, 1-2 týmy)</text>
+
+          <line x1="154" y1="534" x2="154" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="337" y1="534" x2="337" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="520" y1="534" x2="520" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="703" y1="534" x2="703" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="886" y1="534" x2="886" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
+          <line x1="154" y1="566" x2="886" y2="566" stroke="var(--text-dim)" stroke-width="1.2" />
 
           <line x1="500" y1="566" x2="500" y2="649" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
           <line x1="540" y1="649" x2="540" y2="566" stroke="var(--text-dim)" stroke-width="1.5" marker-end="url(#arrow)" />
@@ -1852,7 +1933,7 @@ function renderHelpPage() {
             <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy týmu ve vybrané sezóně se statistikami, událostmi a poločasy</td><td>Souhrn sezóny, Průměry a časování, Zápasy, CSV export</td></tr>
             <tr><td class="mono">squads/teams/{id}</td><td>Soupiska se sezónními statistikami hráčů</td><td>Kádr + CSV export</td></tr>
             <tr><td class="mono">standings/seasons/{id}</td><td>Tabulka dané sezóny (za každou dokončenou)</td><td>Historie sezón</td></tr>
-            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Posledních N zápasů a Rozložení statistik (jen když je zadán počet)</td></tr>
+            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Posledních N zápasů (jen když je zadán počet)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1880,6 +1961,21 @@ function renderHelpPage() {
           </tbody>
         </table>
       </div>
+
+      <h3 style="margin-top:20px;font-size:15px;">Stránka Rozložení statistik</h3>
+      <div class="overflow-x">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Co vrací</th><th>Kde se použije</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">leagues/{id} + teams/seasons/{id}</td><td>Seznam týmů dané ligy (5×, stejně jako Výběr týmu)</td><td>Naplnění roletek "Tým 1" a "Tým 2"</td></tr>
+            <tr><td class="mono">teams/{id}?include=venue</td><td>Název týmu, znak klubu</td><td>Hlavička sloupce (1× nebo 2×, podle počtu vybraných týmů)</td></tr>
+            <tr><td class="mono">leagues/{id}?include=seasons</td><td>Sezóny dané ligy</td><td>Pooling obou dokončených sezón pro vybraný tým (1× nebo 2×)</td></tr>
+            <tr><td class="mono">fixtures/between/…/{teamId}</td><td>Zápasy napříč oběma sezónami</td><td>Rozdělení do pásem pro vybraný tým (1× nebo 2×)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:8px;">Když jsou vybraní oba dva týmy, appka dotazy pro obě strany posílá
+        souběžně (ne jednu po druhé) — tabulka výše platí zvlášť pro každou.</p>
     </div>
 
     <div class="card" id="obecne">
@@ -2182,7 +2278,7 @@ async function teamSeasonHistory(teamId, finishedSeasons, token) {
   return history;
 }
 
-// Shared "count"/"venue" query-param parsing for /team/:id and /team/:id/rozlozeni.
+// Shared "count"/"venue" query-param parsing for /team/:id's "Posledních N zápasů".
 function parseRecentParams(url) {
   const countRaw = Number(url.searchParams.get("count"));
   const recentCount = countRaw > 0 ? Math.min(Math.floor(countRaw), 500) : null;
@@ -2254,19 +2350,39 @@ async function handleTeamPage(teamId, seasonId, leagueId, env, recentCount, rece
   }
 }
 
-async function handleDistributionPage(teamId, leagueId, recentCount, recentVenue, env) {
-  try {
-    const token = env.SPORTMONKS_API_TOKEN;
-    const team = await fetchTeam(teamId, token);
-    const seasons = await fetchLeagueSeasons(leagueId, token);
-    const recent = recentCount
-      ? await fetchRecentMatches(teamId, seasons, recentCount, recentVenue, token).catch(() => null)
-      : null;
+// Parses one side ("1" or "2") of the /rozlozeni comparison form. team{n} is
+// "teamId:leagueId" (a plain <select> can't carry two values without JS), and
+// count{n} defaults to 10 rather than being required, since the HTML form
+// can't mark it required when the whole team-2 side is optional.
+function parseComparisonSide(url, suffix) {
+  const teamRaw = url.searchParams.get(`team${suffix}`);
+  if (!teamRaw) return null;
+  const [teamId, leagueId] = teamRaw.split(":").map(Number);
+  if (!teamId || !leagueId) return null;
+  const countRaw = Number(url.searchParams.get(`count${suffix}`));
+  const count = countRaw > 0 ? Math.min(Math.floor(countRaw), 500) : 10;
+  const venueRaw = url.searchParams.get(`venue${suffix}`);
+  const venue = venueRaw === "home" || venueRaw === "away" ? venueRaw : null;
+  return { teamId, leagueId, count, venue };
+}
 
-    return htmlResponse(renderDistributionPage(team || { id: teamId, name: "Tým" }, leagueId, recent, recentCount, recentVenue));
-  } catch (err) {
-    return htmlResponse(renderTeamPicker({ leagueGroups: [], error: err.message }));
-  }
+async function loadComparisonSide(spec, token) {
+  const team = await fetchTeam(spec.teamId, token);
+  const seasons = await fetchLeagueSeasons(spec.leagueId, token);
+  const recent = await fetchRecentMatches(spec.teamId, seasons, spec.count, spec.venue, token).catch(() => null);
+  return { team: team || { id: spec.teamId, name: "Tým" }, recent };
+}
+
+async function handleComparisonPage(spec1, spec2, env) {
+  const token = env.SPORTMONKS_API_TOKEN;
+  const leagueGroups = await fetchLeagueGroups(token).catch(() => []);
+
+  const [side1, side2] = await Promise.all([
+    spec1 ? loadComparisonSide(spec1, token).catch(() => null) : null,
+    spec2 ? loadComparisonSide(spec2, token).catch(() => null) : null,
+  ]);
+
+  return htmlResponse(renderComparisonPage(leagueGroups, spec1, spec2, side1, side2));
 }
 
 async function handleSeasonPage(seasonId, leagueId, env) {
@@ -2393,12 +2509,11 @@ export default {
       return handleTeamPage(Number(teamMatch[1]), seasonId ? Number(seasonId) : null, leagueId, env, recentCount, recentVenue);
     }
 
-    const distributionMatch = path.match(/^\/team\/(\d+)\/rozlozeni$/);
-    if (distributionMatch && request.method === "GET") {
+    if (path === "/rozlozeni" && request.method === "GET") {
       if (!isAuthed(request, env)) return redirectTo("/");
-      const leagueId = Number(url.searchParams.get("league")) || LEAGUES[0].id;
-      const { recentCount, recentVenue } = parseRecentParams(url);
-      return handleDistributionPage(Number(distributionMatch[1]), leagueId, recentCount, recentVenue, env);
+      const spec1 = parseComparisonSide(url, "1");
+      const spec2 = parseComparisonSide(url, "2");
+      return handleComparisonPage(spec1, spec2, env);
     }
 
     const matchMatch = path.match(/^\/match\/(\d+)$/);
