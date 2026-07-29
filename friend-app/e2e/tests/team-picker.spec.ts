@@ -1,4 +1,5 @@
 import { test, expect } from "./fixtures";
+import { fetchRealTeamName } from "./oracle";
 
 test("shows all five leagues, each with a grid of clickable teams", async ({ page }) => {
   await page.goto("/team");
@@ -28,4 +29,15 @@ test("brand link in the sidebar returns to the team picker", async ({ page }) =>
   await page.goto("/help");
   await page.getByRole("link", { name: "LIGASTAT" }).click();
   await expect(page).toHaveURL(/\/team$/);
+});
+
+test("oracle: a team tile's name matches Sportmonks directly", async ({ page }) => {
+  await page.goto("/team");
+  const firstTeam = page.locator("a.team-card").first();
+  const shownName = (await firstTeam.locator(".name").innerText()).trim();
+  const href = await firstTeam.getAttribute("href");
+  const teamId = Number(href?.match(/^\/team\/(\d+)/)?.[1]);
+
+  const realName = await fetchRealTeamName(teamId);
+  expect(shownName).toBe(realName);
 });
