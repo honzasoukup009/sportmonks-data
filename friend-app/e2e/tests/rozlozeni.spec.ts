@@ -52,3 +52,17 @@ test("requesting more matches than available shows the availability note per sid
   await page.goto("/rozlozeni?team1=2727:262&count1=500");
   await expect(page.getByText("K dispozici", { exact: false })).toBeVisible();
 });
+
+test("internal consistency: each stat's bucket percentages add up to ~100%", async ({ page }) => {
+  await page.goto("/rozlozeni?team1=2727:262&count1=20");
+  const blocks = page.locator(".dist-block");
+  const count = await blocks.count();
+  expect(count).toBeGreaterThan(0);
+  for (let i = 0; i < count; i++) {
+    const pctTexts = await blocks.nth(i).locator(".dist-pct").allInnerTexts();
+    const sum = pctTexts.reduce((acc, t) => acc + Number(t.replace("%", "").trim()), 0);
+    // each bucket is rounded independently, so a few points of rounding slack is expected
+    expect(sum).toBeGreaterThanOrEqual(97);
+    expect(sum).toBeLessThanOrEqual(103);
+  }
+});
